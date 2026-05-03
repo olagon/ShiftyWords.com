@@ -627,6 +627,318 @@ footer .footer-version {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* ----- Stats button next to level label ----- */
+.stats-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 8px;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-family: var(--font-body);
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.stats-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.stats-btn svg { display: block; }
+
+/* ----- Stats panel content ----- */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.85rem;
+    margin: 0.75rem 0 1.5rem;
+}
+
+@media (max-width: 480px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.stats-tile {
+    background: var(--surface-warm);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0.85rem 0.95rem;
+    text-align: center;
+}
+
+.stats-tile .stat-num {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.stats-tile .stat-label {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    font-weight: 600;
+}
+
+.stats-section-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--ink);
+    margin: 1.25rem 0 0.65rem;
+}
+
+.histogram {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.histogram-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.92rem;
+}
+
+.histogram-row .row-label {
+    width: 1.2rem;
+    color: var(--ink-soft);
+    font-weight: 600;
+    text-align: right;
+}
+
+.histogram-row .row-bar {
+    flex: 1;
+    height: 22px;
+    background: var(--line-soft);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    position: relative;
+}
+
+.histogram-row .row-fill {
+    height: 100%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    transition: width 0.4s ease;
+    min-width: 1.5rem;
+}
+
+.histogram-row .row-fill.empty { background: transparent; color: var(--ink-muted); justify-content: flex-start; padding-left: 0.55rem; }
+
+.level-best-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0.5rem 0 1rem;
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+}
+
+.level-best-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.45rem 0.65rem;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.level-best-row .level-tag {
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.level-best-row .level-best-value {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.level-best-row .level-best-value.empty { color: var(--ink-muted); font-style: italic; font-family: inherit; }
+
+.freeze-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    border-radius: var(--radius-full);
+    font-size: 0.86rem;
+    font-weight: 600;
+    margin: 0.25rem 0 0.75rem;
+}
+
+.reminder-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.5rem 0;
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+}
+
+.reminder-row input[type="time"] {
+    padding: 0.4rem 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-family: var(--font-body);
+    color: var(--ink);
+    font-size: 0.9rem;
+}
+
+.reminder-row .btn-mini {
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    border-radius: var(--radius-full);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.reminder-row .btn-mini:hover { background: var(--accent-soft); }
+
+.reminder-row .reminder-hint {
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    flex-basis: 100%;
+}
+
+/* ----- Toast (used for freeze and other quick messages) ----- */
+.toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: var(--surface);
+    padding: 0.7rem 1.1rem;
+    border-radius: var(--radius-full);
+    font-size: 0.88rem;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 3000;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ----- Catch-up and mode banners ----- */
+.catchup-banner,
+.mode-banner {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    border-radius: var(--radius-sm);
+    color: var(--accent-deep);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.catchup-banner a,
+.mode-banner a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent);
+}
+
+.mode-banner {
+    background: var(--warm-soft);
+    color: var(--warm);
+    border-color: color-mix(in srgb, var(--warm) 25%, transparent);
+}
+
+/* ----- Result card ribbons (personal best, etc.) ----- */
+.result-card .ribbons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.45rem;
+    margin: 0.4rem 0 0.6rem;
+}
+
+.result-card .ribbon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    border-radius: var(--radius-full);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.result-card .ribbon.warm { background: var(--warm-soft); color: var(--warm); }
+.result-card .ribbon.success { background: var(--success-soft); color: var(--success); }
+
+.result-card .etymology-card {
+    margin: 0.85rem auto 0;
+    padding: 0.8rem 1rem;
+    background: var(--surface-warm);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    text-align: left;
+    max-width: 440px;
+}
+
+.result-card .etymology-card .etym-headline {
+    color: var(--ink);
+    font-weight: 600;
+    font-family: var(--font-display);
+    margin-right: 0.35rem;
+}
+
+.result-card .post-loss-actions {
+    margin-top: 0.8rem;
+    font-size: 0.88rem;
+}
+
+.result-card .post-loss-actions a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.result-card .post-loss-actions a:hover { border-bottom-color: var(--accent); }
+
 /* ----- Result card (replaces columns when game is over) ----- */
 .result-card {
     width: 100%;

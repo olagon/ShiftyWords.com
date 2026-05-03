@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.5">
+    <link rel="stylesheet" href="styles.css?v=1.6">
 </head>
 
 <body>
@@ -45,6 +45,14 @@
         <div id="currentLevelLabel" class="level-label">
             Gray Level
         </div>
+        <button id="stats-btn" class="stats-btn" aria-label="Open stats" title="Stats">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span id="stats-btn-label">Stats</span>
+        </button>
     </header>
     <!-- Moves, Streak, and Win Streak info -->
     <div id="moves-left">
@@ -104,11 +112,14 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.5 May 2, 2026";
+    const appVersion = "v1.6 May 2, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
     let sortableInstance = null;
+    // puzzleMode: "daily" (default), "archive" (?date=YYYY-MM-DD), "practice" (random non-daily word)
+    let puzzleMode = "daily";
+    let archiveDate = null; // Date object when puzzleMode === "archive"
     let currentLanguage = localStorage.getItem("currentLanguage");
     if (!currentLanguage || !["eng", "fre", "haw", "spa", "rus", "ukr"].includes(currentLanguage)) {
         currentLanguage = "eng";
@@ -159,10 +170,15 @@
         });
     }
 
-    Promise.all([
-            loadScript(`gamewords_${currentLanguage}.js?v=${appVersion}`),
-            loadScript(`translations_${currentLanguage}.js?v=${appVersion}`)
-        ])
+    var _scriptLoads = [
+        loadScript(`gamewords_${currentLanguage}.js?v=${appVersion}`),
+        loadScript(`translations_${currentLanguage}.js?v=${appVersion}`)
+    ];
+    if (currentLanguage === "eng") {
+        // Etymologies are optional. Failures here should not block the game.
+        _scriptLoads.push(loadScript(`etymology_eng.js?v=${appVersion}`).catch(function() {}));
+    }
+    Promise.all(_scriptLoads)
         .then(() => {
             // You may now call initGame() or any initialization functions.
         })
@@ -228,7 +244,16 @@
     }
 
     function getDailySolution() {
-        const today = new Date(); // local time
+        // Practice mode picks a random word from the list. Per-session seed.
+        if (puzzleMode === "practice") {
+            const n = gameWords.length;
+            if (!n) return null;
+            var pick = gameWords[Math.floor(Math.random() * n)];
+            dailySeed = ((Date.now() & 0xffffffff) ^ 0xdeadbeef) >>> 0;
+            return pick;
+        }
+        // Archive uses the requested date instead of today.
+        const today = (puzzleMode === "archive" && archiveDate) ? new Date(archiveDate) : new Date();
         const n = gameWords.length;
         if (!n) return null;
 
@@ -323,8 +348,99 @@
         document.getElementById("winStreak").innerText = winStreak;
     }
 
+    /* =======================
+         LOCAL STATS MODULE
+         All stored in localStorage. Per-language, scoped to the game.
+        ======================== */
+    function _statsKey() { return "SW_stats_" + currentLanguage; }
+    function _emptyStats() {
+        return {
+            played: 0, won: 0,
+            currentStreak: 0, longestStreak: 0,
+            currentWinStreak: 0, longestWinStreak: 0,
+            distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+            bestMoves: { "level-gray": null, "level-purple": null, "level-gold": null, "level-impossible": null },
+            freezesUsed: [],
+            levelIntrosShown: { "level-purple": false, "level-gold": false, "level-impossible": false },
+            reminderTime: null,
+            lastNudgeShown: null,
+            lastUpdated: null
+        };
+    }
+    function loadStats() {
+        try {
+            var raw = localStorage.getItem(_statsKey());
+            if (!raw) return _emptyStats();
+            var s = JSON.parse(raw);
+            // Merge with defaults so new fields appear for old players.
+            return Object.assign(_emptyStats(), s);
+        } catch (e) { return _emptyStats(); }
+    }
+    function saveStats(s) {
+        try {
+            s.lastUpdated = getTodayStr();
+            localStorage.setItem(_statsKey(), JSON.stringify(s));
+        } catch (e) {}
+    }
+    // Freeze: 1 per 30 days, applied automatically when streak would otherwise reset.
+    function freezesAvailable() {
+        var s = loadStats();
+        var thirtyDaysAgo = Date.now() - 30 * 86400000;
+        var recent = (s.freezesUsed || []).filter(function(t) { return t >= thirtyDaysAgo; });
+        return Math.max(0, 1 - recent.length);
+    }
+    function consumeFreeze() {
+        var s = loadStats();
+        s.freezesUsed = s.freezesUsed || [];
+        s.freezesUsed.push(Date.now());
+        // Trim old freezes beyond 90 days to keep the list small.
+        var cutoff = Date.now() - 90 * 86400000;
+        s.freezesUsed = s.freezesUsed.filter(function(t) { return t >= cutoff; });
+        saveStats(s);
+    }
+    var _freezeAppliedThisLoad = false;
+    function maybeApplyStreakFreeze(diffDays) {
+        // diffDays is the gap between today and last played. 1 means yesterday (no reset).
+        // 2 means missed yesterday. We freeze on a 2-day gap if a freeze is available.
+        if (diffDays === 2 && freezesAvailable() > 0) {
+            consumeFreeze();
+            _freezeAppliedThisLoad = true;
+            return true;
+        }
+        return false;
+    }
+
+    function recordGameOutcome(outcome, attempts, levelClass, movesUsed) {
+        if (puzzleMode !== "daily") return; // archive and practice don't touch stats
+        var s = loadStats();
+        s.played += 1;
+        if (outcome === "win") {
+            s.won += 1;
+            if (attempts && attempts >= 1 && attempts <= 5) {
+                s.distribution[attempts] = (s.distribution[attempts] || 0) + 1;
+            }
+            s.currentWinStreak += 1;
+            if (s.currentWinStreak > s.longestWinStreak) s.longestWinStreak = s.currentWinStreak;
+            if (levelClass && typeof movesUsed === "number" && movesUsed >= 0) {
+                var prev = s.bestMoves[levelClass];
+                if (prev == null || movesUsed < prev) s.bestMoves[levelClass] = movesUsed;
+            }
+        } else {
+            s.currentWinStreak = 0;
+        }
+        // Daily streak is the count of consecutive days played (any outcome).
+        s.currentStreak = parseInt(getLangCookie("DSG_streak") || "0", 10) || 0;
+        if (s.currentStreak > s.longestStreak) s.longestStreak = s.currentStreak;
+        saveStats(s);
+    }
+
     function updateGameResult(result) {
         const todayStr = getTodayStr();
+        // In archive or practice modes, do not touch streak cookies or stats.
+        if (puzzleMode !== "daily") {
+            dailyResult = result;
+            return;
+        }
         if (getLangCookie("DSG_lastPlayed") === todayStr) return;
         const previousStreak = parseInt(getLangCookie("DSG_streak") || "0", 10);
         const previousWinStreak = parseInt(getLangCookie("DSG_winStreak") || "0", 10);
@@ -340,6 +456,15 @@
 
         // Update the logo level based on result:
         updateLogoLevel(result);
+
+        // Update local stats (distribution, personal best moves, etc.)
+        try {
+            var winStreakNow = parseInt(getLangCookie("DSG_winStreak") || "0", 10) || 0;
+            var levelForBest = (typeof determineLevel === "function") ? determineLevel(Math.max(0, winStreakNow - (result === "win" ? 1 : 0))) : "level-gray";
+            var movesUsed = (typeof startingMoves !== "undefined" && typeof movesLeft !== "undefined") ? Math.max(0, startingMoves - movesLeft) : null;
+            var attemptsForStats = (typeof currentGuessIndex === "number") ? currentGuessIndex : null;
+            recordGameOutcome(result, attemptsForStats, levelForBest, movesUsed);
+        } catch (e) { console.warn("Stats update failed:", e); }
     }
 
     function saveGameState() {
@@ -1313,6 +1438,21 @@
     }
 
     window.onload = () => {
+        // Parse puzzle mode from URL: ?date=YYYY-MM-DD for archive, ?practice=1 for practice.
+        try {
+            var params = new URLSearchParams(window.location.search);
+            var dateParam = params.get("date");
+            if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+                var d = new Date(dateParam + "T00:00:00");
+                if (!isNaN(d.getTime()) && d <= new Date()) {
+                    puzzleMode = "archive";
+                    archiveDate = d;
+                }
+            } else if (params.get("practice") === "1") {
+                puzzleMode = "practice";
+            }
+        } catch (e) {}
+
         // Reset daily streak if last game was more than one day ago.
         const todayStr = getTodayStr();
         const lastPlayedStr = getLangCookie("DSG_lastPlayed");
@@ -1320,10 +1460,14 @@
             // Convert the stored YYYY-MM-DD string to a Date (using midnight as the time)
             const lastPlayedDate = new Date(lastPlayedStr + "T00:00:00");
             const todayDate = new Date(todayStr + "T00:00:00");
-            const diffDays = (todayDate - lastPlayedDate) / (1000 * 60 * 60 * 24);
-            // If the last played day is more than 1 day old, reset the streak.
+            const diffDays = Math.round((todayDate - lastPlayedDate) / (1000 * 60 * 60 * 24));
+            // If the last played day is more than 1 day old, try to freeze before resetting.
             if (diffDays > 1) {
-                setLangCookie("DSG_streak", 0, 365);
+                if (puzzleMode === "daily" && maybeApplyStreakFreeze(diffDays)) {
+                    // Keep the streak. We'll show a toast after the page is set up.
+                } else {
+                    setLangCookie("DSG_streak", 0, 365);
+                }
             }
         }
 
@@ -1347,6 +1491,33 @@
                 downloadBtn.style.display = "block";
             }
         }
+
+        // Show banners for missed days, archive mode, practice mode, etc.
+        showModeBanner();
+        maybeShowCatchupBanner();
+        maybeShowMissedTodayBanner();
+        scheduleReminderCheck();
+
+        // If a streak freeze was applied this load, let the player know.
+        if (_freezeAppliedThisLoad) {
+            setTimeout(function() {
+                showToast("Streak freeze used. Your day streak is safe.");
+            }, 1200);
+        }
+
+        // First-time level intros: Purple, Gold, Impossible.
+        try {
+            var ws = parseInt(getLangCookie("DSG_winStreak") || "0", 10) || 0;
+            var st = loadStats();
+            var unlockMap = { 3: "level-purple", 6: "level-gold", 10: "level-impossible" };
+            Object.keys(unlockMap).forEach(function(threshold) {
+                var lvl = unlockMap[threshold];
+                if (ws >= parseInt(threshold, 10) && !st.levelIntrosShown[lvl]) {
+                    showLevelIntro(lvl);
+                    st = loadStats(); // re-read after showLevelIntro saves the flag
+                }
+            });
+        } catch (e) {}
     };
     window.makeGuess = makeGuess;
     window.restartGame = restartGame;
@@ -1532,8 +1703,12 @@
         wireFooterLink("footer-terms-link", "terms-modal", "terms");
         wireFooterLink("footer-privacy-link", "privacy-modal", "privacy");
 
+        // Stats button opens stats modal.
+        var statsBtn = document.getElementById("stats-btn");
+        if (statsBtn) statsBtn.addEventListener("click", openStatsModal);
+
         // Click-outside-to-close for the new modals.
-        ["help-modal", "terms-modal", "privacy-modal"].forEach(function(id) {
+        ["help-modal", "terms-modal", "privacy-modal", "stats-modal", "level-intro-modal"].forEach(function(id) {
             window.addEventListener("click", function(event) {
                 var modal = document.getElementById(id);
                 if (event.target === modal) {
@@ -1545,6 +1720,7 @@
         // Escape key closes any open modal (including footer popups, language picker, word lesson).
         var escMonitoredModals = [
             "help-modal", "terms-modal", "privacy-modal",
+            "stats-modal", "level-intro-modal",
             "language-modal", "wordModal", "video-modal"
         ];
         document.addEventListener("keydown", function(event) {
@@ -1863,6 +2039,10 @@
     <div id="help-modal" class="modal"></div>
     <div id="terms-modal" class="modal"></div>
     <div id="privacy-modal" class="modal"></div>
+    <div id="stats-modal" class="modal"></div>
+    <div id="level-intro-modal" class="modal"></div>
+    <div id="catchup-banner" class="catchup-banner hidden"></div>
+    <div id="mode-banner" class="mode-banner hidden"></div>
     <div id="video-modal" class="modal"></div>
     <script>
     // ---------- Analytics helpers ----------
@@ -1966,6 +2146,255 @@
         trackEvent('session_resumed', { event_label: 'Session Resumed' });
     }
 
+    // ---------- Stats panel rendering ----------
+    function _levelHumanName(levelClass) {
+        switch (levelClass) {
+            case "level-gray": return "Gray";
+            case "level-purple": return "Purple";
+            case "level-gold": return "Gold";
+            case "level-impossible": return "Impossible";
+            default: return levelClass;
+        }
+    }
+
+    function renderStatsModal() {
+        var modal = document.getElementById("stats-modal");
+        if (!modal) return;
+        var s = loadStats();
+        var winRate = s.played > 0 ? Math.round((s.won / s.played) * 100) : 0;
+        var distMax = Math.max(1, s.distribution[1] || 0, s.distribution[2] || 0,
+            s.distribution[3] || 0, s.distribution[4] || 0, s.distribution[5] || 0);
+        var freezes = freezesAvailable();
+
+        var html = '<div class="modal-content">';
+        html += '<span class="close">&times;</span>';
+        html += '<h2>Your Stats</h2>';
+        html += '<div class="stats-grid">';
+        html += '<div class="stats-tile"><div class="stat-num">' + s.played + '</div><div class="stat-label">Played</div></div>';
+        html += '<div class="stats-tile"><div class="stat-num">' + winRate + '%</div><div class="stat-label">Win Rate</div></div>';
+        html += '<div class="stats-tile"><div class="stat-num">' + (s.currentStreak || 0) + '</div><div class="stat-label">Day Streak</div></div>';
+        html += '<div class="stats-tile"><div class="stat-num">' + (s.longestStreak || 0) + '</div><div class="stat-label">Best Day Streak</div></div>';
+        html += '<div class="stats-tile"><div class="stat-num">' + (s.currentWinStreak || 0) + '</div><div class="stat-label">Win Streak</div></div>';
+        html += '<div class="stats-tile"><div class="stat-num">' + (s.longestWinStreak || 0) + '</div><div class="stat-label">Best Win Streak</div></div>';
+        html += '</div>';
+
+        html += '<div class="freeze-row" title="Streak freezes auto-apply once per 30 days when you miss a day.">';
+        html += '<span>❄</span> ' + freezes + ' streak freeze' + (freezes === 1 ? '' : 's') + ' available';
+        html += '</div>';
+
+        html += '<div class="stats-section-title">Tries to win</div>';
+        html += '<div class="histogram">';
+        for (var i = 1; i <= 5; i++) {
+            var count = s.distribution[i] || 0;
+            var pct = Math.round((count / distMax) * 100);
+            var fillCls = count === 0 ? "row-fill empty" : "row-fill";
+            html += '<div class="histogram-row">';
+            html += '<div class="row-label">' + i + '</div>';
+            html += '<div class="row-bar"><div class="' + fillCls + '" style="width: ' + (count === 0 ? 100 : Math.max(8, pct)) + '%;">' + count + '</div></div>';
+            html += '</div>';
+        }
+        html += '</div>';
+
+        html += '<div class="stats-section-title">Best moves used by level</div>';
+        html += '<div class="level-best-list">';
+        ["level-gray", "level-purple", "level-gold", "level-impossible"].forEach(function(lvl) {
+            var v = s.bestMoves[lvl];
+            html += '<div class="level-best-row">';
+            html += '<span class="level-tag">' + _levelHumanName(lvl) + '</span>';
+            html += '<span class="level-best-value' + (v == null ? ' empty' : '') + '">' + (v == null ? 'No record yet' : (v + ' moves')) + '</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+
+        html += '<div class="stats-section-title">Daily reminder</div>';
+        html += '<div class="reminder-row">';
+        html += '<input type="time" id="reminder-time-input" value="' + (s.reminderTime || '08:00') + '" />';
+        html += '<button class="btn-mini" id="reminder-save-btn">Save</button>';
+        if (s.reminderTime) {
+            html += '<button class="btn-mini" id="reminder-clear-btn" style="border-color: var(--ink-muted); color: var(--ink-muted);">Clear</button>';
+        }
+        html += '<div class="reminder-hint">Reminders fire when this site is open in a browser tab. Install as an app for best results.</div>';
+        html += '</div>';
+
+        html += '</div>'; // .modal-content
+
+        modal.innerHTML = html;
+        var closeBtn = modal.querySelector(".close");
+        if (closeBtn) closeBtn.addEventListener("click", function() { modal.style.display = "none"; });
+
+        var saveBtn = document.getElementById("reminder-save-btn");
+        if (saveBtn) saveBtn.addEventListener("click", function() {
+            var input = document.getElementById("reminder-time-input");
+            if (!input || !input.value) return;
+            saveReminderTime(input.value);
+            renderStatsModal();
+            showToast("Reminder set for " + input.value);
+        });
+        var clrBtn = document.getElementById("reminder-clear-btn");
+        if (clrBtn) clrBtn.addEventListener("click", function() {
+            saveReminderTime(null);
+            renderStatsModal();
+            showToast("Reminder cleared");
+        });
+    }
+
+    function openStatsModal() {
+        renderStatsModal();
+        document.getElementById("stats-modal").style.display = "flex";
+        trackModalOpened("stats");
+    }
+
+    // ---------- Toast ----------
+    var _toastEl = null;
+    var _toastTimer = null;
+    function showToast(msg) {
+        if (!_toastEl) {
+            _toastEl = document.createElement("div");
+            _toastEl.className = "toast";
+            document.body.appendChild(_toastEl);
+        }
+        _toastEl.textContent = msg;
+        _toastEl.classList.add("show");
+        if (_toastTimer) clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(function() {
+            _toastEl.classList.remove("show");
+        }, 2800);
+    }
+
+    // ---------- Reminder system ----------
+    function saveReminderTime(hhmm) {
+        var s = loadStats();
+        s.reminderTime = hhmm; // e.g., "08:00" or null
+        saveStats(s);
+        scheduleReminderCheck();
+        if (hhmm) {
+            // Ask for permission so the desktop notification can fire later.
+            if ("Notification" in window && Notification.permission === "default") {
+                try { Notification.requestPermission(); } catch (e) {}
+            }
+        }
+    }
+
+    var _reminderTimer = null;
+    function scheduleReminderCheck() {
+        if (_reminderTimer) clearInterval(_reminderTimer);
+        _reminderTimer = setInterval(function() {
+            try {
+                var s = loadStats();
+                if (!s.reminderTime) return;
+                var now = new Date();
+                var hh = String(now.getHours()).padStart(2, "0");
+                var mm = String(now.getMinutes()).padStart(2, "0");
+                if (hh + ":" + mm !== s.reminderTime) return;
+                if (getLangCookie("DSG_lastPlayed") === getTodayStr()) return; // already played
+                if (s.lastNudgeShown === getTodayStr()) return; // already nudged today
+                s.lastNudgeShown = getTodayStr();
+                saveStats(s);
+                if ("Notification" in window && Notification.permission === "granted") {
+                    try { new Notification("ShiftyWords", { body: "Today's puzzle is waiting." }); } catch (e) {}
+                }
+                showToast("Today's puzzle is waiting.");
+            } catch (e) {}
+        }, 60 * 1000);
+    }
+
+    function maybeShowMissedTodayBanner() {
+        // Show in-page banner if it's after the reminder time and the player hasn't played.
+        var s = loadStats();
+        if (!s.reminderTime) return;
+        if (puzzleMode !== "daily") return;
+        if (getLangCookie("DSG_lastPlayed") === getTodayStr()) return;
+        var now = new Date();
+        var [rh, rm] = s.reminderTime.split(":").map(function(x) { return parseInt(x, 10); });
+        if (isNaN(rh) || isNaN(rm)) return;
+        if (now.getHours() < rh || (now.getHours() === rh && now.getMinutes() < rm)) return;
+        var banner = document.getElementById("catchup-banner");
+        if (!banner) return;
+        banner.innerHTML = "Today's puzzle is waiting. <a href=\"#\" id=\"banner-dismiss\">Dismiss</a>";
+        banner.classList.remove("hidden");
+        var dismiss = document.getElementById("banner-dismiss");
+        if (dismiss) dismiss.addEventListener("click", function(e) {
+            e.preventDefault();
+            banner.classList.add("hidden");
+        });
+    }
+
+    // ---------- Catch-up banner (missed yesterday) ----------
+    function maybeShowCatchupBanner() {
+        if (puzzleMode !== "daily") return;
+        var lastPlayed = getLangCookie("DSG_lastPlayed");
+        if (!lastPlayed) return;
+        // Find yesterday's date string in local time.
+        var y = new Date(); y.setDate(y.getDate() - 1);
+        var yStr = y.getFullYear() + "-" + String(y.getMonth() + 1).padStart(2, "0") + "-" + String(y.getDate()).padStart(2, "0");
+        if (lastPlayed === yStr || lastPlayed === getTodayStr()) return; // played yesterday or today
+        // Player missed at least yesterday. Offer to play it.
+        var banner = document.getElementById("catchup-banner");
+        if (!banner) return;
+        banner.innerHTML = "You missed yesterday's puzzle. <a href=\"?date=" + yStr + "\">Play it</a> (no streak credit).";
+        banner.classList.remove("hidden");
+    }
+
+    // ---------- Level intro modal (first time you reach Purple/Gold/Impossible) ----------
+    function showLevelIntro(levelClass) {
+        var modal = document.getElementById("level-intro-modal");
+        if (!modal) return;
+        var stats = loadStats();
+        if (stats.levelIntrosShown[levelClass]) return;
+        var name = _levelHumanName(levelClass);
+        var content = {
+            "level-purple": {
+                headline: "You unlocked Purple Level.",
+                rule: "From now on you'll get 4 guess rows instead of 5, and 7 fewer starting moves. Same word length. The puzzle gets a little tighter.",
+                vibe: "Three wins in a row. Nicely done."
+            },
+            "level-gold": {
+                headline: "You unlocked Gold Level.",
+                rule: "3 guess rows, even fewer moves. Every column shuffle counts. The board still has a minimum of 21 moves.",
+                vibe: "Six in a row. Real focus."
+            },
+            "level-impossible": {
+                headline: "You unlocked Impossible Level.",
+                rule: "2 guess rows. Almost no margin. This is the rarefied air. A loss drops you back to Gray.",
+                vibe: "Ten in a row. You earned this."
+            }
+        }[levelClass] || { headline: "New level reached.", rule: "", vibe: "" };
+
+        var html = '<div class="modal-content">';
+        html += '<span class="close">&times;</span>';
+        html += '<h2>' + content.headline + '</h2>';
+        html += '<p style="font-family: var(--font-display); font-size: 1.1rem; color: var(--accent); margin: 0.25rem 0 0.85rem;">' + content.vibe + '</p>';
+        html += '<p>' + content.rule + '</p>';
+        html += '<div style="margin-top: 1rem; text-align: right;"><button id="level-intro-ok" class="btn-mini" style="padding: 0.5rem 1.1rem;">Got it</button></div>';
+        html += '</div>';
+        modal.innerHTML = html;
+        modal.style.display = "flex";
+
+        var close = modal.querySelector(".close");
+        if (close) close.addEventListener("click", function() { modal.style.display = "none"; });
+        var ok = document.getElementById("level-intro-ok");
+        if (ok) ok.addEventListener("click", function() { modal.style.display = "none"; });
+
+        // Mark as shown so we don't repeat.
+        stats.levelIntrosShown[levelClass] = true;
+        saveStats(stats);
+        trackEvent("level_intro_shown", { event_label: "Level Intro: " + name, level_intro: levelClass });
+    }
+
+    function showModeBanner() {
+        var banner = document.getElementById("mode-banner");
+        if (!banner) return;
+        if (puzzleMode === "archive" && archiveDate) {
+            var d = archiveDate;
+            var dStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+            banner.innerHTML = "Archive puzzle for " + dStr + ". This won't affect your streak. <a href=\".\">Back to today</a>";
+            banner.classList.remove("hidden");
+        } else if (puzzleMode === "practice") {
+            banner.innerHTML = "Practice round. This won't affect your streak. <a href=\".\">Back to today's puzzle</a>";
+            banner.classList.remove("hidden");
+        }
+    }
+
     // ---------- Result card (the answer reveal in the columns area) ----------
     var _resultCountdownTimer = null;
 
@@ -1996,6 +2425,9 @@
         var winStreak = getWinStreak();
         var dailyStreak = parseInt(getLangCookie("DSG_streak") || "0", 10) || 0;
         var movesUsed = (typeof startingMoves !== "undefined" && typeof movesLeft !== "undefined") ? Math.max(0, startingMoves - movesLeft) : null;
+        var stats = loadStats();
+        var levelForBest = (typeof determineLevel === "function") ? determineLevel(Math.max(0, winStreak - (outcome === "win" ? 1 : 0))) : "level-gray";
+        var prevBest = stats.bestMoves[levelForBest];
 
         var headline = outcome === "win" ? (t.foundIt || "You got it!") : (t.shucks || "Good try.");
         var eyebrow = outcome === "win" ? "Solved" : "Today's word";
@@ -2005,6 +2437,20 @@
         html += '<div class="result-headline">' + headline + '</div>';
         html += '<div class="result-word">' + solWord + '</div>';
 
+        // Ribbons (personal best, half-moves, freeze).
+        if (outcome === "win" && puzzleMode === "daily") {
+            var ribbons = [];
+            if (prevBest != null && movesUsed != null && movesUsed < prevBest) {
+                ribbons.push('<span class="ribbon">★ Personal best for ' + _levelHumanName(levelForBest) + '</span>');
+            } else if (prevBest == null && movesUsed != null) {
+                ribbons.push('<span class="ribbon">First win at ' + _levelHumanName(levelForBest) + ' Level</span>');
+            }
+            if (movesUsed != null && typeof startingMoves !== "undefined" && movesUsed * 2 < startingMoves) {
+                ribbons.push('<span class="ribbon success">Solved in fewer than half your moves</span>');
+            }
+            if (ribbons.length) html += '<div class="ribbons">' + ribbons.join("") + '</div>';
+        }
+
         if (currentLanguage !== "eng" && definition) {
             html += '<div class="result-definition"><em>Definition.</em> ' + definition;
             if (lesson) {
@@ -2012,6 +2458,14 @@
                 html += ' <a href="#" class="lesson-link" onclick="showModal(\'' + safeLesson + '\', false); return false;">Open word lesson</a>';
             }
             html += '</div>';
+        }
+
+        // English etymology card.
+        if (currentLanguage === "eng" && solWord) {
+            var etymText = (typeof etymologies !== "undefined" && etymologies[solWord]) ? etymologies[solWord] : null;
+            if (etymText) {
+                html += '<div class="etymology-card"><span class="etym-headline">' + solWord + '.</span>' + etymText + '</div>';
+            }
         }
 
         html += '<div class="result-stats">';
@@ -2026,6 +2480,23 @@
         html += '</div>';
 
         html += '<div class="result-countdown" id="result-countdown">Next puzzle in <strong>--:--:--</strong></div>';
+
+        // After-loss continuation links: don't let the player leave on a negative.
+        if (outcome === "lose" && puzzleMode === "daily") {
+            html += '<div class="post-loss-actions">';
+            html += '<a href="?practice=1">Try a practice word</a>';
+            // Also offer yesterday's puzzle.
+            var y = new Date(); y.setDate(y.getDate() - 1);
+            var yStr = y.getFullYear() + "-" + String(y.getMonth() + 1).padStart(2, "0") + "-" + String(y.getDate()).padStart(2, "0");
+            html += ' &middot; <a href="?date=' + yStr + '">Play yesterday\'s</a>';
+            html += '</div>';
+        }
+        if (puzzleMode === "practice" || puzzleMode === "archive") {
+            html += '<div class="post-loss-actions">';
+            html += '<a href="?practice=1">Another practice word</a>';
+            html += ' &middot; <a href=".">Back to today\'s puzzle</a>';
+            html += '</div>';
+        }
 
         card.classList.remove("hidden", "won", "lost");
         card.classList.add(outcome === "win" ? "won" : "lost");
@@ -2087,9 +2558,12 @@
             const winStreak = parseInt(getLangCookie("DSG_winStreak") || "0", 10);
             const newLevelClass = determineLevel(winStreak + 1);
 
-            // If the level has changed, celebrate!
+            // If the level has changed, celebrate and (first time only) show the intro.
             if (newLevelClass !== currentLevelClass) {
                 celebrateLevelUp();
+                if (typeof showLevelIntro === "function") {
+                    setTimeout(function() { showLevelIntro(newLevelClass); }, 1800);
+                }
             }
 
             // Update logo and label.
