@@ -318,17 +318,61 @@ header {
 
 .drag-handle {
     width: 100%;
-    height: 22px;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: space-between;
     color: var(--ink-muted);
     font-size: 13px;
-    cursor: grab;
     background: var(--surface-warm);
     border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     margin-bottom: 4px;
+    overflow: hidden;
+}
+
+.drag-handle .grab-strip {
+    flex: 1;
+    cursor: grab;
+    min-height: 26px;
     touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.column-arrow {
+    flex: 0 0 auto;
+    width: 28px;
+    min-height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.column-arrow:hover,
+.column-arrow:focus-visible {
+    background: var(--accent-soft);
+    color: var(--accent);
+    outline: none;
+}
+
+.column-arrow:active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.column-arrow:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .column-wrapper:hover .drag-handle {
@@ -336,7 +380,54 @@ header {
     color: var(--accent);
 }
 
-.drag-handle.disabled { display: none; }
+.drag-handle.disabled { opacity: 0.4; pointer-events: none; }
+
+/* Live guess preview row above the columns */
+.guess-preview {
+    display: flex;
+    justify-content: center;
+    gap: var(--cell-gap);
+    margin: 0 0 1rem;
+    padding: 0.4rem 0.5rem;
+    background: var(--surface-warm);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-sm);
+    max-width: max-content;
+}
+
+.guess-preview.hidden { display: none; }
+
+.preview-tile {
+    width: clamp(34px, 9vw, 44px);
+    height: clamp(34px, 9vw, 44px);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: clamp(15px, 4vw, 20px);
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.preview-tile.empty {
+    color: var(--ink-muted);
+    font-weight: 400;
+}
+
+.preview-tile.flash {
+    animation: preview-flash 0.35s ease;
+}
+
+@keyframes preview-flash {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.15); background: var(--accent-soft); }
+    100% { transform: scale(1); }
+}
 
 .column {
     display: flex;
