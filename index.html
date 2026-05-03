@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.7.1">
+    <link rel="stylesheet" href="styles.css?v=1.8">
 </head>
 
 <body>
@@ -82,7 +82,7 @@
     <footer>
         <span class="footer-line">Built with aloha by <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Olin Kealoha Lagon</a></span>
         <span class="footer-line"><a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Send feedback</a> &middot; <span class="switch-language-trigger" id="change-language" role="button" tabindex="0" aria-label="Switch language">Language <span class="switch-language-icon">🌐</span></span></span>
-        <span class="footer-line"><a href="#" id="footer-privacy-link">Privacy</a> &middot; <a href="#" id="footer-terms-link">Terms</a> &middot; No ads</span>
+        <span class="footer-line"><a href="#" id="footer-privacy-link">Privacy</a> &middot; <a href="#" id="footer-terms-link">Terms</a> &middot; <a href="#" id="footer-games-link">More Games</a> &middot; No ads</span>
         <span class="footer-line footer-version">&copy; 2026 &middot; <span id="app-version"></span></span>
     </footer>
     <div id="language-modal" class="modal">
@@ -112,7 +112,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.7.1 May 2, 2026";
+    const appVersion = "v1.8.4 May 2, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -1696,9 +1696,10 @@
         // Instructions: load in the user's currently selected language.
         loadModalFragment("help-modal", "help_" + currentLanguage + ".html");
 
-        // Terms and Privacy: English only, regardless of game language.
+        // Terms, Privacy, and More Games: English only, regardless of game language.
         loadModalFragment("terms-modal", "terms.html");
         loadModalFragment("privacy-modal", "privacy.html");
+        loadModalFragment("games-modal", "more-games.html");
 
         // Footer links open their respective modals.
         function wireFooterLink(linkId, modalId, label) {
@@ -1712,13 +1713,14 @@
         }
         wireFooterLink("footer-terms-link", "terms-modal", "terms");
         wireFooterLink("footer-privacy-link", "privacy-modal", "privacy");
+        wireFooterLink("footer-games-link", "games-modal", "more_games");
 
         // Stats button opens stats modal.
         var statsBtn = document.getElementById("stats-btn");
         if (statsBtn) statsBtn.addEventListener("click", openStatsModal);
 
         // Click-outside-to-close for the new modals.
-        ["help-modal", "terms-modal", "privacy-modal", "stats-modal", "level-intro-modal"].forEach(function(id) {
+        ["help-modal", "terms-modal", "privacy-modal", "games-modal", "stats-modal", "level-intro-modal"].forEach(function(id) {
             window.addEventListener("click", function(event) {
                 var modal = document.getElementById(id);
                 if (event.target === modal) {
@@ -1729,7 +1731,7 @@
 
         // Escape key closes any open modal (including footer popups, language picker, word lesson).
         var escMonitoredModals = [
-            "help-modal", "terms-modal", "privacy-modal",
+            "help-modal", "terms-modal", "privacy-modal", "games-modal",
             "stats-modal", "level-intro-modal",
             "language-modal", "wordModal", "video-modal"
         ];
@@ -2049,6 +2051,7 @@
     <div id="help-modal" class="modal"></div>
     <div id="terms-modal" class="modal"></div>
     <div id="privacy-modal" class="modal"></div>
+    <div id="games-modal" class="modal"></div>
     <div id="stats-modal" class="modal"></div>
     <div id="level-intro-modal" class="modal"></div>
     <div id="catchup-banner" class="catchup-banner hidden"></div>
