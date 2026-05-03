@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.6">
+    <link rel="stylesheet" href="styles.css?v=1.6.2">
 </head>
 
 <body>
@@ -112,7 +112,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.6.1 May 2, 2026";
+    const appVersion = "v1.6.2 May 2, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -1323,6 +1323,7 @@
         if (currentGuessIndex <= guessRows) {
             saveGameState();
             drawColumns(); // Refresh columns to clear selection for the new row
+            nudgeHintIfStruggling();
         } else {
             updateGameResult("lose");
             // Prepare the loss message.
@@ -1503,6 +1504,7 @@
         maybeShowCatchupBanner();
         maybeShowMissedTodayBanner();
         scheduleReminderCheck();
+        refreshHintIndicator();
 
         // If a streak freeze was applied this load, let the player know.
         if (_freezeAppliedThisLoad) {
@@ -1570,6 +1572,7 @@
                         // Record that the hint has been used today for this language.
                         localStorage.setItem(hintKey, todayStr);
                         trackHintUsed();
+                        refreshHintIndicator();
                     } else {
                         alert("All letters have already been uncovered!");
                     }
@@ -2151,6 +2154,35 @@
 
     function trackSessionResumed() {
         trackEvent('session_resumed', { event_label: 'Session Resumed' });
+    }
+
+    // ---------- Hint discoverability ----------
+    function _hintAlreadyUsedToday() {
+        try {
+            return localStorage.getItem("hintUsed_" + currentLanguage) === getTodayStr();
+        } catch (e) { return false; }
+    }
+    function refreshHintIndicator() {
+        var y = document.getElementById("logo-hint");
+        if (!y) return;
+        if (puzzleMode === "daily" && !gameCompleted && !_hintAlreadyUsedToday()) {
+            y.classList.add("hint-available");
+            y.setAttribute("title", "Stuck? Try clicking me.");
+            y.setAttribute("aria-label", "Hint available. Click for a free letter reveal.");
+        } else {
+            y.classList.remove("hint-available", "hint-pulse");
+            y.removeAttribute("title");
+            y.removeAttribute("aria-label");
+        }
+    }
+    function nudgeHintIfStruggling() {
+        // After two wrong guesses, gently pulse the Y to suggest the secret click.
+        var y = document.getElementById("logo-hint");
+        if (!y) return;
+        if (!y.classList.contains("hint-available")) return;
+        if (typeof currentGuessIndex === "number" && currentGuessIndex >= 3) {
+            y.classList.add("hint-pulse");
+        }
     }
 
     // ---------- Stats panel rendering ----------

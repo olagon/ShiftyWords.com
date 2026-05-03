@@ -223,6 +223,48 @@ header {
     border-image: var(--level-impossible) 1;
 }
 
+/* Hint discoverability on the Y tile.
+   The dot only shows when a free hint is available today,
+   and the pulse only kicks in after the player has struggled. */
+#logo-hint {
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#logo-hint:hover {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+#logo-hint.hint-available::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.7;
+}
+
+#logo-hint.hint-pulse::after {
+    animation: hint-pulse 1.6s ease-in-out infinite;
+    opacity: 1;
+}
+
+@keyframes hint-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+    50% {
+        transform: scale(1.4);
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent);
+    }
+}
+
 /* ----- Stats pill row ----- */
 #moves-left {
     display: inline-flex;
