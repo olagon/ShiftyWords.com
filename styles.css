@@ -539,15 +539,30 @@ footer .footer-version {
     letter-spacing: 0.06em;
 }
 
-.switch-language-icon {
+.switch-language-trigger {
     cursor: pointer;
-    margin-left: 6px;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 1px;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+}
+
+.switch-language-trigger:hover,
+.switch-language-trigger:focus-visible {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    outline: none;
+}
+
+.switch-language-icon {
+    margin-left: 4px;
     display: inline-block;
     transition: transform 0.18s ease;
     border-bottom: none !important;
 }
 
-.switch-language-icon:hover {
+.switch-language-trigger:hover .switch-language-icon {
     transform: scale(1.15);
 }
 

@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.23">
+    <link rel="stylesheet" href="styles.css?v=1.5">
 </head>
 
 <body>
@@ -73,7 +73,7 @@
     <a href="#" id="download-result" style="display: none;">Share Results</a>
     <footer>
         <span class="footer-line">Built with aloha by <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Olin Kealoha Lagon</a></span>
-        <span class="footer-line"><a href="#" id="footer-help-link">Instructions</a> &middot; <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Send feedback</a> &middot; Language <span class="switch-language-icon" id="change-language" role="button" aria-label="Switch language">🌐</span></span>
+        <span class="footer-line"><a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Send feedback</a> &middot; <span class="switch-language-trigger" id="change-language" role="button" tabindex="0" aria-label="Switch language">Language <span class="switch-language-icon">🌐</span></span></span>
         <span class="footer-line"><a href="#" id="footer-privacy-link">Privacy</a> &middot; <a href="#" id="footer-terms-link">Terms</a> &middot; No ads</span>
         <span class="footer-line footer-version">&copy; 2026 &middot; <span id="app-version"></span></span>
     </footer>
@@ -104,7 +104,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.23 05/2026";
+    const appVersion = "v1.5 May 2, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -173,8 +173,6 @@
         document.getElementById("label-streak").innerText = translations[currentLanguage].streak;
         document.getElementById("label-winStreak").innerText = translations[currentLanguage].winStreak;
         document.getElementById("download-result").innerText = translations[currentLanguage].share;
-        var footerHelp = document.getElementById("footer-help-link");
-        if (footerHelp) footerHelp.innerText = translations[currentLanguage].help;
         var levelHelp = document.getElementById("help-link-inline");
         if (levelHelp) levelHelp.innerText = translations[currentLanguage].help;
         document.getElementById("instructions").innerText = translations[currentLanguage].instructions;
@@ -1436,15 +1434,25 @@
 
         }
 
-        // Open language selector modal when icon is clicked, but only if no game is in progress.
-        document.getElementById("change-language").addEventListener("click", function() {
-            // Check if a game is in progress. Adjust this condition based on your game logic.
+        // Open language selector when the Language pill (text + globe) is clicked or activated.
+        function _openLanguagePicker() {
             if (!gameCompleted && currentGuessIndex > 1) {
                 alert(translations[currentLanguage].switchAfter);
                 return;
             }
             document.getElementById("language-modal").style.display = "flex";
-        });
+            trackModalOpened("language");
+        }
+        var _langTrigger = document.getElementById("change-language");
+        if (_langTrigger) {
+            _langTrigger.addEventListener("click", _openLanguagePicker);
+            _langTrigger.addEventListener("keydown", function(e) {
+                if (e.key === "Enter" || e.key === " " || e.keyCode === 13 || e.keyCode === 32) {
+                    e.preventDefault();
+                    _openLanguagePicker();
+                }
+            });
+        }
 
         // Close the modal when the close button is clicked.
         document.getElementById("language-close").addEventListener("click", function() {
@@ -1521,7 +1529,6 @@
                 trackModalOpened(label);
             });
         }
-        wireFooterLink("footer-help-link", "help-modal", "instructions");
         wireFooterLink("footer-terms-link", "terms-modal", "terms");
         wireFooterLink("footer-privacy-link", "privacy-modal", "privacy");
 
@@ -1533,6 +1540,27 @@
                     modal.style.display = "none";
                 }
             });
+        });
+
+        // Escape key closes any open modal (including footer popups, language picker, word lesson).
+        var escMonitoredModals = [
+            "help-modal", "terms-modal", "privacy-modal",
+            "language-modal", "wordModal", "video-modal"
+        ];
+        document.addEventListener("keydown", function(event) {
+            if (event.key !== "Escape" && event.keyCode !== 27) return;
+            var closedAny = false;
+            escMonitoredModals.forEach(function(id) {
+                var modal = document.getElementById(id);
+                if (!modal) return;
+                var visible = modal.style.display === "flex" || modal.classList.contains("active");
+                if (visible) {
+                    modal.style.display = "none";
+                    modal.classList.remove("active");
+                    closedAny = true;
+                }
+            });
+            if (closedAny) event.stopPropagation();
         });
 
         // update logo to color for current level
