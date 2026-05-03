@@ -122,7 +122,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0 1rem 7rem;
+    padding: 0 1rem 1.5rem;
     background-image:
         radial-gradient(circle at 15% 0%, rgba(94, 58, 158, 0.04) 0%, transparent 40%),
         radial-gradient(circle at 85% 100%, rgba(196, 96, 43, 0.025) 0%, transparent 40%);
@@ -495,22 +495,16 @@ html[data-theme="dark"] .column {
     font-size: 0.98rem;
 }
 
-/* ----- Footer (matches OleloDaily) ----- */
+/* ----- Footer (matches OleloDaily, inline) ----- */
 footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
     width: 100%;
-    background: var(--header-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid var(--line-soft);
-    padding: 1rem 1rem 1.1rem;
+    max-width: 720px;
+    margin: 2.5rem auto 0;
+    padding: 1.5rem 1rem 1.75rem;
     text-align: center;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     color: var(--ink-muted);
     line-height: 1.55;
-    z-index: 2000;
 }
 
 footer a {
@@ -696,11 +690,83 @@ footer .footer-version {
     #moves-left { font-size: 0.92rem; }
 
     footer {
-        padding: 0.85rem 0.75rem 0.95rem;
-        font-size: 0.74rem;
+        margin-top: 1.75rem;
+        padding: 1.25rem 0.75rem 1.5rem;
+        font-size: 0.78rem;
     }
 
     footer .footer-line {
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.4rem;
     }
+}
+
+/* ----- Long-form modal content (Terms, Privacy, Instructions) ----- */
+.modal-content h2 + p,
+.modal-content p {
+    color: var(--ink-soft);
+    margin: 0 0 1rem;
+    line-height: 1.6;
+}
+
+.modal-content h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 1.15rem;
+    color: var(--ink);
+    margin: 1.6rem 0 0.5rem;
+}
+
+.modal-content ol,
+.modal-content ul {
+    color: var(--ink-soft);
+    line-height: 1.65;
+    padding-left: 1.25rem;
+}
+
+.modal-content ol li,
+.modal-content ul li {
+    margin-bottom: 0.5rem;
+}
+
+.modal-content strong { color: var(--ink); font-weight: 600; }
+
+.modal-content a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.modal-content a:hover { border-bottom-color: var(--accent); }
+
+.modal-content .kindness {
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    border-left: 4px solid var(--accent);
+    padding: 1.25rem 1.4rem;
+    border-radius: var(--radius-sm);
+    margin: 0.5rem 0 1.5rem;
+}
+
+.modal-content .kindness .kind-headline {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 500;
+    color: var(--accent);
+    margin: 0 0 0.5rem;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+}
+
+.modal-content .kindness p {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.96rem;
+    line-height: 1.55;
+}
+
+.modal-content .meta {
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    margin-top: 1.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
 }

@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.21">
+    <link rel="stylesheet" href="styles.css?v=1.22">
 </head>
 
 <body>
@@ -71,8 +71,8 @@
     <a href="#" id="download-result" style="display: none;">Share Results</a>
     <footer>
         <span class="footer-line">Built with aloha by <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Olin Kealoha Lagon</a></span>
-        <span class="footer-line"><a href="#" id="help-link-inline">Instructions</a> &middot; <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Send feedback</a> &middot; Language <span class="switch-language-icon" id="change-language" role="button" aria-label="Switch language">🌐</span></span>
-        <span class="footer-line"><a href="https://olelodaily.com/privacy.html" target="_blank" rel="noopener">Privacy</a> &middot; <a href="https://olelodaily.com/terms.html" target="_blank" rel="noopener">Terms</a> &middot; No ads</span>
+        <span class="footer-line"><a href="#" id="footer-help-link">Instructions</a> &middot; <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Send feedback</a> &middot; Language <span class="switch-language-icon" id="change-language" role="button" aria-label="Switch language">🌐</span></span>
+        <span class="footer-line"><a href="#" id="footer-privacy-link">Privacy</a> &middot; <a href="#" id="footer-terms-link">Terms</a> &middot; No ads</span>
         <span class="footer-line footer-version">&copy; 2026 &middot; <span id="app-version"></span></span>
     </footer>
     <div id="language-modal" class="modal">
@@ -102,7 +102,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.21 05/2026";
+    const appVersion = "v1.22 05/2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -171,7 +171,10 @@
         document.getElementById("label-streak").innerText = translations[currentLanguage].streak;
         document.getElementById("label-winStreak").innerText = translations[currentLanguage].winStreak;
         document.getElementById("download-result").innerText = translations[currentLanguage].share;
-        document.getElementById("help-link-inline").innerText = translations[currentLanguage].help;
+        var footerHelp = document.getElementById("footer-help-link");
+        if (footerHelp) footerHelp.innerText = translations[currentLanguage].help;
+        var levelHelp = document.getElementById("help-link-inline");
+        if (levelHelp) levelHelp.innerText = translations[currentLanguage].help;
         document.getElementById("instructions").innerText = translations[currentLanguage].instructions;
         document.getElementById("app-version").innerText = appVersion;
     }
@@ -1456,30 +1459,58 @@
         });
 
 
-        // Build the file name based on currentLanguage
-        const helpFile = `help_${currentLanguage}.html`;
+        // Helper that fetches a fragment and pours it into the named modal.
+        // The fragment must include a top-level .close element so the X works.
+        function loadModalFragment(modalId, fragmentUrl) {
+            return fetch(fragmentUrl + "?v=" + appVersion)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status + " loading " + fragmentUrl);
+                    }
+                    return response.text();
+                })
+                .then(function(html) {
+                    var modal = document.getElementById(modalId);
+                    modal.innerHTML = html;
+                    var closeBtn = modal.querySelector(".close");
+                    if (closeBtn) {
+                        closeBtn.addEventListener("click", function() {
+                            modal.style.display = "none";
+                        });
+                    }
+                })
+                .catch(function(err) { console.error("Modal load failed:", err); });
+        }
 
-        // Fetch the external file and insert its content into the help modal
-        fetch(helpFile)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.text();
-            })
-            .then(html => {
-                // Insert the fetched HTML into the modal container.
-                document.getElementById("help-modal").innerHTML = html;
+        // Instructions: load in the user's currently selected language.
+        loadModalFragment("help-modal", "help_" + currentLanguage + ".html");
 
-                // Optionally, you can add event listeners here for the close button:
-                const closeBtn = document.querySelector("#help-modal .close");
-                if (closeBtn) {
-                    closeBtn.addEventListener("click", function() {
-                        document.getElementById("help-modal").style.display = "none";
-                    });
+        // Terms and Privacy: English only, regardless of game language.
+        loadModalFragment("terms-modal", "terms.html");
+        loadModalFragment("privacy-modal", "privacy.html");
+
+        // Footer links open their respective modals.
+        function wireFooterLink(linkId, modalId) {
+            var link = document.getElementById(linkId);
+            if (!link) return;
+            link.addEventListener("click", function(e) {
+                e.preventDefault();
+                document.getElementById(modalId).style.display = "flex";
+            });
+        }
+        wireFooterLink("footer-help-link", "help-modal");
+        wireFooterLink("footer-terms-link", "terms-modal");
+        wireFooterLink("footer-privacy-link", "privacy-modal");
+
+        // Click-outside-to-close for the new modals.
+        ["help-modal", "terms-modal", "privacy-modal"].forEach(function(id) {
+            window.addEventListener("click", function(event) {
+                var modal = document.getElementById(id);
+                if (event.target === modal) {
+                    modal.style.display = "none";
                 }
-            })
-            .catch(error => console.error("Error loading help file:", error));
+            });
+        });
 
         // update logo to color for current level
         var winStreak = getWinStreak();
@@ -1777,6 +1808,8 @@
     });
     </script>
     <div id="help-modal" class="modal"></div>
+    <div id="terms-modal" class="modal"></div>
+    <div id="privacy-modal" class="modal"></div>
     <div id="video-modal" class="modal"></div>
     <script>
     // Called when the game starts
