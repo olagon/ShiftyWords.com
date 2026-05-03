@@ -1,0 +1,1955 @@
+<!-- https://www.phpkobo.com/html-obfuscator -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9X9KT7SZWB"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-9X9KT7SZWB');
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.4.0/dist/confetti.browser.min.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#faf7f2">
+    <meta name="description" content="ShiftyWords. Uncover the daily word. A quiet, daily puzzle in six languages.">
+    <title>ShiftyWords.com. Uncover words. Get to Impossible.</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=1.21">
+</head>
+
+<body>
+    <header>
+        <div id="logoContainer" class="shifty-logo level-gray">
+            <!-- Tiles and "words" (in front) -->
+            <div class="tiles_logo">
+                <div class="tile_logo">S</div>
+                <div class="tile_logo">H</div>
+                <div class="tile_logo">I</div>
+                <div class="tile_logo">F</div>
+                <div class="tile_logo">T</div>
+                <div class="tile_logo" id="logo-hint">Y</div>
+                <div class="words">words</div>
+            </div>
+        </div>
+        <!-- Level label below the logo -->
+        <div id="currentLevelLabel" class="level-label">
+            Gray Level
+        </div>
+    </header>
+    <!-- Moves, Streak, and Win Streak info -->
+    <div id="moves-left">
+        <span id="label-streak" class="label">Streak:</span> <span id="streak">0</span> &nbsp;
+        <span id="label-winStreak" class="label">Win Streak:</span> <span id="winStreak">0</span>
+    </div>
+    <!-- Letter selection board -->
+    <div id="columns-container"></div>
+    <!-- Guess button container -->
+    <div class="controls-container">
+        <span id="guess-button-container">
+            <!-- The Check button will be inserted here by createGuessButton() -->
+            <!-- And then the Moves count appears to its right -->
+        </span>
+        <span id="moves-left-button">
+            <span id="label-movesLeft" class="label">Moves:</span>
+            <span id="movesLeft">21</span>
+        </span>
+    </div>
+    <div id="instructions"></div>
+    <!-- The guess board will be generated dynamically based on win streak -->
+    <div id="board" class="hidden-board"></div>
+    <div id="game-status"></div>
+    <a href="#" id="download-result" style="display: none;">Share Results</a>
+    <footer>
+        <span class="footer-line">Built with aloha by <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Olin Kealoha Lagon</a></span>
+        <span class="footer-line"><a href="#" id="help-link-inline">Instructions</a> &middot; <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Send feedback</a> &middot; Language <span class="switch-language-icon" id="change-language" role="button" aria-label="Switch language">🌐</span></span>
+        <span class="footer-line"><a href="https://olelodaily.com/privacy.html" target="_blank" rel="noopener">Privacy</a> &middot; <a href="https://olelodaily.com/terms.html" target="_blank" rel="noopener">Terms</a> &middot; No ads</span>
+        <span class="footer-line footer-version">&copy; 2026 &middot; <span id="app-version"></span></span>
+    </footer>
+    <div id="language-modal" class="modal">
+        <div class="modal-content" id="language-content">
+            <span class="close" id="language-close">&times;</span>
+            <h2>Select Language</h2>
+            <ul id="language-list" style="list-style: none; padding: 0;">
+                <li data-lang="eng" style="cursor: pointer; padding: 5px;">English</li>
+                <li data-lang="fre" style="cursor: pointer; padding: 5px;">French</li>
+                <li data-lang="haw" style="cursor: pointer; padding: 5px;">Hawaiian</li>
+                <li data-lang="spa" style="cursor: pointer; padding: 5px;">Spanish</li>
+                <li data-lang="rus" style="cursor: pointer; padding: 5px;">Russian</li>
+                <li data-lang="ukr" style="cursor: pointer; padding: 5px;">Ukrainian</li>
+            </ul>
+        </div>
+    </div>
+    <div id="wordModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2>Today's Word</h2>
+            <div id="modalContent">
+                <!-- The lesson content for the word of the day will be inserted here -->
+            </div>
+        </div>
+    </div>
+    <script>
+    /* =======================
+             Game variables to set
+            ======================== */
+    const appVersion = "v1.21 05/2026";
+    let startingMoves = 50;
+    let streakMovesReduction = 7;
+    let minMoves = 18;
+    let sortableInstance = null;
+    let currentLanguage = localStorage.getItem("currentLanguage");
+    if (!currentLanguage || !["eng", "fre", "haw", "spa", "rus", "ukr"].includes(currentLanguage)) {
+        currentLanguage = "eng";
+        localStorage.setItem("currentLanguage", "eng");
+    }
+    let eliminatedLetters = new Set();
+    let foundLetters = new Set();
+    let currentLevelClass = "level-gray"; // default initial level
+    const languageNames = {
+        eng: "English",
+        fre: "French",
+        haw: "Hawaiian",
+        spa: "Spanish",
+        rus: "Russian",
+        ukr: "Ukrainian"
+    };
+    const WIN_STREAK_THRESHOLD_4_ROWS = 3;
+    const WIN_STREAK_THRESHOLD_3_ROWS = 6;
+    const WIN_STREAK_THRESHOLD_2_ROWS = 10;
+
+    /* =======================
+         GLOBAL VARIABLES & DEFAULTS
+        ======================== */
+    let activeMove = null;
+    let dailyResult = null;
+    let dailySeed;
+    let gameCompleted = false;
+    const alphabets = {
+        eng: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        haw: "aāeēiīoōuūhklmnpwʻ",
+        spa: "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ",
+        rus: "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ",
+        fre: "ABCDEFGHIJKLMNOPQRSTUVWXYZÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ",
+        ukr: "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ"
+    };
+
+    let currentAlphabet = alphabets[currentLanguage] || alphabets.eng;
+    let guessRows;
+
+    // Dynamically load language-specific external files
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = () => reject(new Error("Failed to load script: " + src));
+            document.head.appendChild(script);
+        });
+    }
+
+    Promise.all([
+            loadScript(`gamewords_${currentLanguage}.js?v=${appVersion}`),
+            loadScript(`translations_${currentLanguage}.js?v=${appVersion}`)
+        ])
+        .then(() => {
+            // You may now call initGame() or any initialization functions.
+        })
+        .catch((error) => console.error("Error loading language files:", error));
+
+    function updateLabels() {
+        document.getElementById("label-movesLeft").innerText = translations[currentLanguage].movesLeft;
+        document.getElementById("label-streak").innerText = translations[currentLanguage].streak;
+        document.getElementById("label-winStreak").innerText = translations[currentLanguage].winStreak;
+        document.getElementById("download-result").innerText = translations[currentLanguage].share;
+        document.getElementById("help-link-inline").innerText = translations[currentLanguage].help;
+        document.getElementById("instructions").innerText = translations[currentLanguage].instructions;
+        document.getElementById("app-version").innerText = appVersion;
+    }
+
+    function getLocalDateSeed(date = new Date()) {
+        const y = date.getFullYear();
+        const m = date.getMonth() + 1; // 1 to 12
+        const d = date.getDate(); // 1 to 31
+        return ((y * 10000 + m * 100 + d) >>> 0); // example: 20260101
+    }
+
+    // Date helpers (local time)
+    function addDays(date, deltaDays) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + deltaDays);
+        return d;
+    }
+
+    // 32-bit FNV-1a hash (deterministic across browsers)
+    function hash32(str) {
+        let h = 0x811c9dc5;
+        for (let i = 0; i < str.length; i++) {
+            h ^= str.charCodeAt(i);
+            h = Math.imul(h, 0x01000193);
+        }
+        return h >>> 0;
+    }
+
+    // Days since a fixed local-date epoch.
+    // Using local midnight avoids DST/time-of-day issues.
+    function getLocalDayNumber(date = new Date()) {
+        const midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const epoch = new Date(2020, 0, 1); // Jan 1, 2020 (local)
+        return Math.floor((midnight - epoch) / 86400000);
+    }
+
+    let _dailyPermutation = null;
+    let _dailyPermutationLen = 0;
+
+    function getDailyPermutation(wordsLen) {
+        if (_dailyPermutation && _dailyPermutationLen === wordsLen) return _dailyPermutation;
+
+        const arr = Array.from({ length: wordsLen }, (_, i) => i);
+
+        // Seed is stable across days, but different per language.
+        const seed = (hash32(String(currentLanguage || "eng")) ^ 0xA5A5A5A5) >>> 0;
+
+        _dailyPermutation = seededShuffle(arr, seededRandom(seed));
+        _dailyPermutationLen = wordsLen;
+        return _dailyPermutation;
+    }
+
+    function getDailySolution() {
+        const today = new Date(); // local time
+        const n = gameWords.length;
+        if (!n) return null;
+
+        const dayNum = getLocalDayNumber(today);
+        const perm = getDailyPermutation(n);
+
+        let index = perm[((dayNum % n) + n) % n];
+
+        // Guarantee: if n >= 8, this permutation approach cannot repeat within the last 7 days.
+        // If n <= 7, that guarantee is mathematically impossible. This is best-effort.
+        if (n > 1 && n <= 7) {
+            const recent = new Set();
+            const window = Math.min(7, n - 1);
+
+            for (let i = 1; i <= window; i++) {
+                const dn = getLocalDayNumber(addDays(today, -i));
+                const idx = perm[((dn % n) + n) % n];
+                recent.add(idx);
+            }
+
+            if (recent.has(index)) {
+                // Deterministically walk forward until we find one not in the recent set.
+                for (let step = 1; step < n; step++) {
+                    const candidate = perm[(((dayNum + step) % n) + n) % n];
+                    if (!recent.has(candidate)) {
+                        index = candidate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // dailySeed drives the rest of the puzzle randomness (columns, shuffles).
+        // Mix in the chosen index so it changes with the word too.
+        dailySeed = (getLocalDateSeed(today) ^ ((index + 1) * 0x9e3779b9)) >>> 0;
+
+        return gameWords[index];
+    }
+
+    /* =======================
+         COOKIE UTILITIES
+        ======================== */
+    function setCookie(name, value, days) {
+        let expires = "";
+        if (days) {
+            const date = new Date();
+            date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+    }
+
+    function getCookie(name) {
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(";");
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === " ") c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+
+    function deleteCookie(name) {
+        document.cookie = name + "=; Max-Age=-99999999; path=/";
+    }
+
+    function setLangCookie(name, value, days) {
+        setCookie(name + "_" + currentLanguage, value, days);
+    }
+
+    function getLangCookie(name) {
+        return getCookie(name + "_" + currentLanguage);
+    }
+
+    function deleteLangCookie(name) {
+        deleteCookie(name + "_" + currentLanguage);
+    }
+
+    function getTodayStr() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const day = String(today.getDate()).padStart(2, "0");
+        return year + "-" + month + "-" + day;
+    }
+
+    function updateStreakDisplay() {
+        const streak = getLangCookie("DSG_streak") || 0;
+        const winStreak = getLangCookie("DSG_winStreak") || 0;
+        document.getElementById("streak").innerText = streak;
+        document.getElementById("winStreak").innerText = winStreak;
+    }
+
+    function updateGameResult(result) {
+        const todayStr = getTodayStr();
+        if (getLangCookie("DSG_lastPlayed") === todayStr) return;
+        const previousStreak = parseInt(getLangCookie("DSG_streak") || "0", 10);
+        const previousWinStreak = parseInt(getLangCookie("DSG_winStreak") || "0", 10);
+        const newStreak = previousStreak + 1;
+        const newWinStreak = result === "win" ? previousWinStreak + 1 : 0;
+        setLangCookie("DSG_lastPlayed", todayStr, 365);
+        setLangCookie("DSG_streak", newStreak, 365);
+        setLangCookie("DSG_winStreak", newWinStreak, 365);
+        setLangCookie("DSG_lastResult", result, 365);
+        updateStreakDisplay();
+        dailyResult = result;
+        saveGameState();
+
+        // Update the logo level based on result:
+        updateLogoLevel(result);
+    }
+
+    function saveGameState() {
+        var state = {
+            columns: columns,
+            guesses: guesses,
+            currentGuessIndex: currentGuessIndex,
+            columnOrder: columnOrder,
+            outcome: dailyResult,
+            guessRows: guessRows
+        };
+        setLangCookie("DSG_gameState", JSON.stringify(state), 365);
+    }
+
+    function restoreGameState(state) {
+        solution = getDailySolution();
+        columns = state.columns;
+        guesses = state.guesses;
+        currentGuessIndex = state.currentGuessIndex;
+        columnOrder = state.columnOrder;
+        dailyResult = state.outcome;
+        guessRows = state.guessRows || guessRows;
+        // Reset any active move upon restoring the game.
+        activeMove = null;
+        // Clear sets before repopulating
+        eliminatedLetters.clear();
+        foundLetters.clear();
+        generateGuessBoard();
+        for (let row = 1; row <= guessRows; row++) {
+            if (!guesses[row]) continue;
+            const guessStr = guesses[row].join("");
+            if (guessStr.length === 5) {
+                const feedback = checkGuess(guessStr, solution);
+                for (let col = 0; col < 5; col++) {
+                    const tile = document.getElementById(`tile-${row}-${col}`);
+                    if (tile) {
+                        tile.innerText = guesses[row][col];
+                        if (row === currentGuessIndex && dailyResult === "win") {
+                            tile.classList.add("win");
+                        } else {
+                            tile.classList.add(feedback[col]);
+                        }
+                    }
+                    // Repopulate sets
+                    const letter = guesses[row][col];
+                    if (feedback[col] === "correct" || feedback[col] === "misplaced") {
+                        foundLetters.add(letter);
+                    }
+                    if (feedback[col] === "wrong") {
+                        eliminatedLetters.add(letter);
+                    }
+                }
+            }
+        }
+        drawColumns(); // Re-draw columns to show eliminated/found/selected states
+        const boardEl = document.getElementById("board");
+        boardEl.style.display = "flex";
+        boardEl.classList.remove("hidden-board");
+        boardEl.classList.add("visible");
+
+        if (gameCompleted) {
+            const solWord = (typeof solution === "object" && solution.word) ? solution.word : solution;
+            let message = "";
+            if (dailyResult === "win") {
+                message = translations[currentLanguage].foundIt + "<br /><span class='winning-answer'>" +
+                    translations[currentLanguage].winningWord + solWord + "</span>";
+            } else {
+                message = translations[currentLanguage].shucks + "<br /><span class='winning-answer'>" +
+                    translations[currentLanguage].winningWord + solWord + "</span>";
+            }
+            // For non‑English languages, append the definition (if available) and a link to open the lesson modal.
+            if (currentLanguage !== "eng" && typeof solution === "object" && solution.definition) {
+                message += "<span class=\"winning-answer\"><br>" + solution.definition;
+                message += " <br><a href='#' class='lesson-link' onclick=\"showModal('" +
+                    solution.lesson.replace(/'/g, "\\'") + "', false); return false;\">Open Word Lesson!</a></span><br /><br />";
+            }
+
+            document.getElementById("instructions").style.display = "none";
+            //document.getElementById("guess-button-container").style.display = "none";
+            removeGuessButton(message);
+            hideLetterSelectionArea();
+        }
+    }
+
+
+    function lockGameForToday(fromLoad) {
+        const todayStr = getTodayStr();
+        if (getLangCookie("DSG_lastPlayed") === todayStr) {
+            if (fromLoad) {
+                var stateStr = getLangCookie("DSG_gameState");
+                if (stateStr) {
+                    var state = JSON.parse(stateStr);
+                    gameCompleted = true;
+                    restoreGameState(state);
+                } else {
+                    const result = getLangCookie("DSG_lastResult") || "";
+                    let solWord = (typeof solution === "object" && solution.word) ? solution.word : solution;
+                    let message = translations[currentLanguage].already;
+                    if (result === "win" || result === "lose") {
+                        message += "<br><span class='winning-answer'>" + translations[currentLanguage].winningWord + solWord + "</span>";
+                    }
+
+                    removeGuessButton(message);
+                }
+            }
+            movesLeft = 0;
+            updateMovesLeft();
+            // Hide the moves-left-button when the game is completed.
+            const movesLeftButton = document.getElementById("moves-left-button");
+            if (movesLeftButton) {
+                movesLeftButton.style.display = "none";
+            }
+        }
+    }
+
+    function checkIfPlayedToday() {
+        const todayStr = getTodayStr();
+        if (getLangCookie("DSG_lastPlayed") === todayStr) {
+            lockGameForToday(true);
+        }
+    }
+
+    function clearCookies(silent) {
+        deleteLangCookie("DSG_lastPlayed");
+        deleteLangCookie("DSG_streak");
+        deleteLangCookie("DSG_winStreak");
+        deleteLangCookie("DSG_lastResult");
+        deleteLangCookie("DSG_gameState");
+        updateStreakDisplay();
+        clearGuessBoard();
+        document.getElementById("board").style.display = "flex";
+        createGuessButton();
+        if (!silent) {
+            alert("Cookies were cleared!");
+        }
+    }
+
+    function seededRandom(seed) {
+        let x = (seed >>> 0);
+        if (x === 0) x = 0x9e3779b9; // any non-zero constant
+        return function() {
+            x ^= x << 13;
+            x ^= x >>> 17;
+            x ^= x << 5;
+            return (x >>> 0) / 4294967296;
+        };
+    }
+
+    function seededShuffle(array, rand) {
+        const arr = array.slice();
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(rand() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function generateColumnsFromWinningWord(winningWord, seed) {
+        if (typeof winningWord === "object" && winningWord.word) winningWord = winningWord.word;
+
+        const rand = seededRandom(seed);
+        const cols = [];
+
+        for (let i = 0; i < winningWord.length; i++) {
+            const letter = winningWord[i];
+            const col = [letter];
+
+            let guard = 0;
+            while (col.length < 5) {
+                if (guard++ > 200) {
+                    // fallback: fill deterministically so it never hangs
+                    for (let k = 0; col.length < 5 && k < currentAlphabet.length; k++) {
+                        const c = currentAlphabet.charAt(k);
+                        if (!col.includes(c)) col.push(c);
+                    }
+                    break;
+                }
+
+                const index = Math.floor(rand() * currentAlphabet.length);
+                const candidate = currentAlphabet.charAt(index);
+                if (!col.includes(candidate)) col.push(candidate);
+            }
+
+            cols.push(seededShuffle(col, rand));
+        }
+
+        return cols;
+    }
+
+    // --- Generate the guess board dynamically based on guessRows ---
+    function generateGuessBoard() {
+        const board = document.getElementById("board");
+        board.innerHTML = "";
+        for (let row = 1; row <= guessRows; row++) {
+            const rowDiv = document.createElement("div");
+            rowDiv.className = "guess-row";
+            rowDiv.id = `guess-row-${row}`;
+            for (let col = 0; col < 5; col++) {
+                const tile = document.createElement("div");
+                tile.className = "tile";
+                tile.id = `tile-${row}-${col}`;
+                rowDiv.appendChild(tile);
+            }
+            board.appendChild(rowDiv);
+        }
+    }
+
+    function clearGuessBoard() {
+        for (let row = 1; row <= guessRows; row++) {
+            for (let col = 0; col < 5; col++) {
+                const tile = document.getElementById(`tile-${row}-${col}`);
+                if (tile) {
+                    tile.innerText = "";
+                    tile.className = "tile";
+                }
+            }
+        }
+    }
+    let solution, columns, columnOrder, movesLeft, currentGuessIndex, guesses;
+
+    function initGame() {
+        // Clear any active move state when starting a new game.
+        activeMove = null;
+        initVariables();
+        updateMovesLeft();
+        clearGuessBoard();
+        drawColumns();
+        generateGuessBoard();
+        createGuessButton();
+        document.getElementById("game-status").innerText = "";
+        const board = document.getElementById("board");
+        board.classList.add("hidden-board");
+        board.classList.remove("visible");
+        const container = document.getElementById("columns-container");
+        container.classList.remove("hidden");
+        trackGameStart(); // Track that a game has started
+    }
+
+    function initVariables() {
+        solution = getDailySolution();
+        gameCompleted = false;
+        columns = generateColumnsFromWinningWord(solution, dailySeed);
+        let rand = seededRandom(dailySeed + 1);
+        columnOrder = seededShuffle([0, 1, 2, 3, 4], rand);
+
+        // Ensure the columns are not already in the winning order.
+        // If they are, shuffle again with a modified seed until they are not.
+        let attempts = 0;
+        while (JSON.stringify(columnOrder) === JSON.stringify([0, 1, 2, 3, 4]) && attempts < 10) {
+            rand = seededRandom(dailySeed + 1 + (++attempts));
+            columnOrder = seededShuffle([0, 1, 2, 3, 4], rand);
+        }
+
+        let winStreakCookie = parseInt(getLangCookie("DSG_winStreak") || "0", 10);
+        movesLeft = Math.max(startingMoves - (winStreakCookie * streakMovesReduction), minMoves);
+
+        // Reset sets
+        eliminatedLetters = new Set();
+        foundLetters = new Set();
+
+        // Determine the number of guess rows based on win streak.
+        if (winStreakCookie >= WIN_STREAK_THRESHOLD_2_ROWS) {
+            guessRows = 2;
+        } else if (winStreakCookie >= WIN_STREAK_THRESHOLD_3_ROWS) {
+            guessRows = 3;
+        } else if (winStreakCookie >= WIN_STREAK_THRESHOLD_4_ROWS) {
+            guessRows = 4;
+        } else {
+            guessRows = 5;
+        }
+
+
+        currentGuessIndex = 1;
+        guesses = {};
+        for (let r = 1; r <= guessRows; r++) {
+            guesses[r] = [null, null, null, null, null];
+        }
+    }
+
+    // Compute the temporary order if a move is active.
+    function computeDisplayOrder() {
+        // If no move is active, simply return a copy of columnOrder.
+        if (!activeMove) {
+            return columnOrder.slice();
+        } else {
+            // Make a copy of the permanent column order.
+            let tempOrder = columnOrder.slice();
+            // Remove the moving column from its original position.
+            let moving = tempOrder.splice(activeMove.origDisplayPos, 1)[0];
+            // Insert the moving column at the new temporary display position.
+            tempOrder.splice(activeMove.newDisplayPos, 0, moving);
+            return tempOrder;
+        }
+    }
+
+    // Helper function to update the displayed guess row.
+    function updateGuessRowDOM() {
+        const row = guesses[currentGuessIndex] || [];
+        for (let col = 0; col < row.length; col++) {
+            const tile = document.getElementById(`tile-${currentGuessIndex}-${col}`);
+            if (tile) {
+                tile.innerText = row[col] || "";
+            }
+        }
+    }
+    // Given the old order, old guess row, and new order, build the new guess row.
+    function updateGuessRowAfterDrag(oldOrder, oldGuess, newOrder) {
+        let newGuess = [];
+        newOrder.forEach(actualColIndex => {
+            // Find where this column was in the old order.
+            const oldIndex = oldOrder.indexOf(actualColIndex);
+            // If there was a guessed letter for that column, use it; otherwise null.
+            newGuess.push(oldGuess[oldIndex] !== undefined ? oldGuess[oldIndex] : null);
+        });
+        return newGuess;
+    }
+
+
+    function drawColumns() {
+        const container = document.getElementById("columns-container");
+        container.innerHTML = "";
+
+        // Destroy the previous instance if it exists.
+        if (sortableInstance) {
+            sortableInstance.destroy();
+            sortableInstance = null;
+        }
+
+        // Loop through the current permanent order
+        columnOrder.forEach((actualColIndex, displayPos) => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "column-wrapper";
+            wrapper.dataset.colIndex = actualColIndex;
+
+
+
+
+            // Create drag-handle element.
+            const dragHandle = document.createElement("div");
+            dragHandle.className = "drag-handle";
+            dragHandle.innerHTML = movesLeft > 0 ? "&#x2190; &#x2192;" : "X";
+            if (movesLeft <= 0) {
+                dragHandle.classList.add("disabled");
+            }
+            wrapper.appendChild(dragHandle);
+
+            // Create the column of letters.
+            const colDiv = document.createElement("div");
+            colDiv.className = "column";
+            columns[actualColIndex].forEach(letter => {
+                const cell = document.createElement("div");
+                cell.className = "letter-cell";
+                cell.innerText = letter;
+                // Apply feedback styling if needed
+                if (eliminatedLetters.has(letter) && !foundLetters.has(letter)) {
+                    cell.classList.add("eliminated");
+                }
+                if (foundLetters.has(letter)) {
+                    cell.classList.add("found");
+                }
+                // Check if this letter is currently selected in this column
+                if (!gameCompleted && guesses[currentGuessIndex] && guesses[currentGuessIndex][displayPos] === letter) {
+                    cell.classList.add("selected");
+                }
+                // When clicking a letter, add it to the guess.
+                cell.addEventListener("click", function() {
+                    const wrapper = this.closest(".column-wrapper");
+                    // Compute current position from the parent container
+                    const currentDisplayPos = Array.from(wrapper.parentNode.children).indexOf(wrapper);
+                    addLetterToGuess(currentDisplayPos, letter);
+                });
+
+                colDiv.appendChild(cell);
+            });
+            wrapper.appendChild(colDiv);
+            container.appendChild(wrapper);
+        });
+
+        // Initialize SortableJS on the container.
+        sortableInstance = Sortable.create(container, {
+            animation: 150,
+            handle: ".drag-handle",
+            forceFallback: true,
+            disabled: movesLeft <= 0,
+            onStart: function(evt) {
+                if (movesLeft <= 0) {
+                    evt.preventDefault();
+                    return;
+                }
+                evt.item.classList.add("dragging");
+            },
+            onEnd: function(evt) {
+                evt.item.classList.remove("dragging");
+                const container = document.getElementById("columns-container");
+                const oldOrder = columnOrder.slice();
+                const oldGuess = guesses[currentGuessIndex] ? guesses[currentGuessIndex].slice() : [];
+
+                let newOrder = [];
+                Array.from(container.children).forEach(child => {
+                    newOrder.push(parseInt(child.dataset.colIndex, 10));
+                });
+
+                if (arraysEqual(newOrder, oldOrder)) {
+                    drawColumns();
+                    return;
+                }
+
+                // If the current guess row is empty, we still update the order and decrement moves.
+                if (oldGuess.every(letter => letter === null)) {
+                    columnOrder = newOrder;
+                    movesLeft--;
+                    updateMovesLeft();
+                    saveGameState();
+                    drawColumns();
+                    return;
+                }
+
+                // Update the guess row based on the new order.
+                if (guesses[currentGuessIndex]) {
+                    const newGuess = updateGuessRowAfterDrag(oldOrder, oldGuess, newOrder);
+                    guesses[currentGuessIndex] = newGuess;
+                    updateGuessRowDOM();
+                }
+
+                if (movesLeft <= 0) {
+                    drawColumns();
+                    return;
+                }
+
+                movesLeft--;
+                updateMovesLeft();
+
+                // Update the permanent column order and save state.
+                columnOrder = newOrder;
+                saveGameState();
+            }
+        });
+    }
+
+
+    function updateGuessRowLive() {
+        if (!activeMove) return;
+        // Start with the backup copy.
+        let tempRow = activeMove.backupGuess.slice();
+        // Remove the letter from its original position.
+        let letter = tempRow.splice(activeMove.origDisplayPos, 1)[0];
+        // Insert it at the new temporary position.
+        tempRow.splice(activeMove.newDisplayPos, 0, letter);
+        // Update the current guess row.
+        guesses[currentGuessIndex] = tempRow;
+
+        // Update the DOM for each tile.
+        for (let col = 0; col < tempRow.length; col++) {
+            const tile = document.getElementById(`tile-${currentGuessIndex}-${col}`);
+            if (tile) {
+                tile.innerText = tempRow[col] || "";
+            }
+        }
+    }
+
+
+    // Helper function to move the column temporarily to the left.
+    function temporaryMoveLeft() {
+        if (!activeMove) return;
+        if (activeMove.newDisplayPos > 0) {
+            activeMove.newDisplayPos--;
+            updateGuessRowLive();
+            drawColumns(); // Also re-render columns with updated order.
+        }
+    }
+
+    function temporaryMoveRight() {
+        if (!activeMove) return;
+        if (activeMove.newDisplayPos < 4) { // assuming 5 columns total
+            activeMove.newDisplayPos++;
+            updateGuessRowLive();
+            drawColumns();
+        }
+    }
+
+    function confirmMove() {
+        if (!activeMove) return;
+        console.log("Confirming move:", activeMove);
+
+        // Get the active column's wrapper element.
+        const wrapper = document.querySelector(".column-wrapper.moving-column");
+        if (wrapper) {
+            // Add a class that triggers the confirmation animation.
+            wrapper.classList.add("confirmed-move");
+        }
+
+        // Wait a little longer than your transition (e.g., 1000ms) before updating the state.
+        setTimeout(() => {
+            const movingCol = activeMove.movingCol;
+            const currentIndex = columnOrder.indexOf(movingCol);
+            if (currentIndex > -1) {
+                columnOrder.splice(currentIndex, 1);
+                columnOrder.splice(activeMove.newDisplayPos, 0, movingCol);
+            }
+            movesLeft--;
+            updateMovesLeft();
+
+            // Clear any inline transform styles, if used.
+            if (wrapper) {
+                wrapper.style.transform = "";
+                wrapper.style.transition = "";
+                // Remove the confirmation animation class.
+                wrapper.classList.remove("confirmed-move");
+            }
+
+            activeMove = null;
+            drawColumns();
+            saveGameState();
+            console.log("Move confirmed. New columnOrder:", columnOrder);
+        }, 1000);
+    }
+
+    // Function to cancel the active move.
+    function cancelMove() {
+        if (activeMove) {
+            // Restore the original guess row.
+            guesses[currentGuessIndex] = activeMove.backupGuess.slice();
+            // Update DOM for the guess row.
+            for (let col = 0; col < activeMove.backupGuess.length; col++) {
+                const tile = document.getElementById(`tile-${currentGuessIndex}-${col}`);
+                if (tile) {
+                    tile.innerText = activeMove.backupGuess[col] || "";
+                }
+            }
+            activeMove = null;
+            drawColumns();
+        }
+    }
+
+    // Global event listener: clicking anywhere (except on a button) cancels the move.
+    document.addEventListener("click", function(e) {
+        if (activeMove && !e.target.closest(".arrow-button")) {
+            // If the column hasn't moved, cancel the move.
+            if (activeMove.newDisplayPos === activeMove.origDisplayPos) {
+                cancelMove();
+            } else {
+                confirmMove();
+            }
+        }
+    }, true);
+
+
+
+
+
+    // Global flag to track if the first letter of the current guess has been selected.
+    let firstLetterSelected = false;
+
+    function scrollToGameArea() {
+        // On mobile, scroll so the columns are at the top of the viewport
+        if (window.innerWidth <= 600) {
+            const columns = document.getElementById("columns-container");
+            if (columns) {
+                columns.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }
+    }
+
+    function addLetterToGuess(displayPos, letter) {
+        if (gameCompleted) return;
+        const board = document.getElementById("board");
+        const instructions = document.getElementById("instructions");
+
+        // When the first letter is selected:
+        if (!firstLetterSelected) {
+            firstLetterSelected = true;
+            // Fade out instructions:
+            if (instructions) {
+                instructions.classList.add("hidden");
+                // After the fade-out transition, hide it completely.
+                setTimeout(() => {
+                    instructions.style.display = "none";
+                }, 500);
+            }
+            // Fade in the board:
+            if (board) {
+                board.style.display = "flex";
+                // Use a small timeout to trigger the transition.
+                setTimeout(() => {
+                    board.classList.remove("hidden-board");
+                    board.classList.add("visible");
+                    // Scroll to show the game area (columns + board)
+                    scrollToGameArea();
+                }, 10);
+            }
+        }
+        guesses[currentGuessIndex][displayPos] = letter;
+        const tileId = `tile-${currentGuessIndex}-${displayPos}`;
+        document.getElementById(tileId).innerText = letter;
+        updateGuessButton();
+        saveGameState();
+        drawColumns(); // Refresh columns to show selection
+    }
+
+    function customSmoothScrollTo(targetY, duration) {
+        const startY = window.pageYOffset;
+        const distance = targetY - startY;
+        const startTime = performance.now();
+
+        function scrollAnimation(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Ease in-out quadratic function
+            const easeInOutQuad = progress < 0.5 ?
+                2 * progress * progress :
+                -1 + (4 - 2 * progress) * progress;
+
+            window.scrollTo(0, startY + distance * easeInOutQuad);
+
+            if (elapsed < duration) {
+                requestAnimationFrame(scrollAnimation);
+            }
+        }
+        requestAnimationFrame(scrollAnimation);
+    }
+
+    function scrollToArrowKeys() {
+        const arrowKeys = document.getElementById("columns-container");
+        let targetY = 0;
+        if (arrowKeys) {
+            // Get the vertical position of the element relative to the document
+            targetY = arrowKeys.getBoundingClientRect().top + window.pageYOffset;
+        }
+        // Scroll to the target Y position over 2000ms (2 seconds)
+        customSmoothScrollTo(targetY, 1000);
+    }
+
+    function moveColumnRight(displayPos) {
+        if (gameCompleted) return;
+        if (movesLeft <= 0) {
+            alert("All moves have been used up!");
+            return;
+        }
+        const wrappers = document.getElementsByClassName("column-wrapper");
+        const targetWrapper = wrappers[displayPos];
+        if (targetWrapper) {
+            targetWrapper.classList.add("animate");
+        }
+        setTimeout(() => {
+            if (displayPos === 4) {
+                const last = columnOrder.pop();
+                columnOrder.unshift(last);
+            } else {
+                [columnOrder[displayPos], columnOrder[displayPos + 1]] = [columnOrder[displayPos + 1], columnOrder[displayPos]];
+            }
+            movesLeft--;
+            updateMovesLeft();
+            clearCurrentGuessRow();
+            drawColumns();
+            saveGameState();
+        }, 300);
+    }
+
+    function moveColumnLeft(displayPos) {
+        if (gameCompleted) return;
+        if (movesLeft <= 0) {
+            alert("All moves have been used up!");
+            return;
+        }
+        const wrappers = document.getElementsByClassName("column-wrapper");
+        const targetWrapper = wrappers[displayPos];
+        if (targetWrapper) {
+            targetWrapper.classList.add("animate");
+        }
+        setTimeout(() => {
+            if (displayPos === 0) {
+                const first = columnOrder.shift();
+                columnOrder.push(first);
+            } else {
+                [columnOrder[displayPos], columnOrder[displayPos - 1]] = [columnOrder[displayPos - 1], columnOrder[displayPos]];
+            }
+            movesLeft--;
+            updateMovesLeft();
+            clearCurrentGuessRow();
+            drawColumns();
+            saveGameState();
+        }, 300);
+    }
+
+    function clearCurrentGuessRow() {
+        guesses[currentGuessIndex] = [null, null, null, null, null];
+        for (let col = 0; col < 5; col++) {
+            const tileId = `tile-${currentGuessIndex}-${col}`;
+            const tile = document.getElementById(tileId);
+            if (tile) {
+                tile.innerText = "";
+                tile.className = "tile";
+            }
+        }
+        saveGameState();
+    }
+
+    // Helper function to compare two arrays for equality.
+    function arraysEqual(a, b) {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    }
+
+    function updateMovesLeft() {
+        const movesLeftEl = document.getElementById("movesLeft");
+        movesLeftEl.innerText = movesLeft;
+        movesLeftEl.classList.add("animate-moves");
+        setTimeout(() => {
+            movesLeftEl.classList.remove("animate-moves");
+        }, 500);
+
+        if (sortableInstance) {
+            if (movesLeft <= 0) {
+                sortableInstance.option("disabled", true);
+                // Update drag handles to show disabled icon.
+                document.querySelectorAll(".drag-handle").forEach(function(handle) {
+                    handle.classList.add("disabled");
+                    handle.innerHTML = "X";
+                });
+            } else {
+                sortableInstance.option("disabled", false);
+                document.querySelectorAll(".drag-handle").forEach(function(handle) {
+                    handle.classList.remove("disabled");
+                    handle.innerHTML = "&#x2190; &#x2192;";
+                });
+            }
+        }
+    }
+
+
+
+
+
+    function checkGuess(guess, solution) {
+        // If solution is an object, use its 'word' property.
+        let solutionStr = (typeof solution === 'object' && solution.word) ? solution.word : solution;
+        const feedback = ["wrong", "wrong", "wrong", "wrong", "wrong"];
+        let solutionChars = solutionStr.split("");
+
+        for (let i = 0; i < 5; i++) {
+            if (guess[i] === solutionChars[i]) {
+                feedback[i] = "correct";
+                solutionChars[i] = null;
+            }
+        }
+        for (let i = 0; i < 5; i++) {
+            if (feedback[i] === "correct") continue;
+            const letter = guess[i];
+            const idx = solutionChars.indexOf(letter);
+            if (idx !== -1) {
+                feedback[i] = "misplaced";
+                solutionChars[idx] = null;
+            }
+        }
+        return feedback;
+    }
+
+
+    function makeGuess() {
+        if (currentGuessIndex > guessRows) return;
+        const rowArr = guesses[currentGuessIndex];
+        if (rowArr.includes(null)) {
+            document.getElementById("game-status").innerText = translations[currentLanguage].completeFirst;
+            return;
+        }
+        const guess = guesses[currentGuessIndex].join("");
+        const feedback = checkGuess(guess, solution);
+        for (let col = 0; col < 5; col++) {
+            const tileId = `tile-${currentGuessIndex}-${col}`;
+            const tile = document.getElementById(tileId);
+            if (tile) {
+                tile.classList.add(feedback[col]);
+                tile.classList.add("flip");
+                setTimeout(() => { tile.classList.remove("flip"); }, 300);
+            }
+            // If the letter was found, add it to foundLetters.
+            if (feedback[col] === "correct" || feedback[col] === "misplaced") {
+                foundLetters.add(guesses[currentGuessIndex][col]);
+            }
+            // If the letter feedback is "wrong", add it to eliminatedLetters.
+            if (feedback[col] === "wrong") {
+                eliminatedLetters.add(guesses[currentGuessIndex][col]);
+            }
+        }
+        // Immediately disable the guess button to prevent extra clicks
+        document.getElementById("guess-button").disabled = true;
+
+        // WIN branch: correct guess.
+        if (guess === (typeof solution === 'object' ? solution.word : solution)) {
+            // Update the tiles to reflect the win.
+            for (let col = 0; col < 5; col++) {
+                const tileId = `tile-${currentGuessIndex}-${col}`;
+                const tile = document.getElementById(tileId);
+                tile.classList.remove("correct", "wrong", "misplaced");
+                tile.classList.add("win");
+            }
+
+            smoothScrollToTop(2000);
+
+
+
+            // Trigger the confetti effect on every win.
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+
+            // Append the definition for non‑English games.
+
+            let additionalText = "";
+            if (currentLanguage !== "eng" && typeof solution === "object" && solution.definition) {
+                additionalText += "<span class=\"winning-answer\"><br><em>Definition:</em> " + solution.definition;
+                // Append a clickable link that calls showModal() with the lesson from the word object.
+                // The replace call escapes any single quotes in the lesson content.
+                additionalText += " (<a href='#' class='lesson-link' onclick=\"showModal('" +
+                    solution.lesson.replace(/'/g, "\\'") + "'); return false;\">Word Lesson!</a>)</span><br /><br />";
+            }
+            let winMessage = translations[currentLanguage].foundIt + additionalText;
+
+            // Track the win event and update game result.
+            trackGameWin(currentGuessIndex);
+            updateGameResult("win");
+
+            // Update the UI with the win message.
+            removeGuessButton(winMessage);
+            gameCompleted = true;
+            drawColumns(); // Clear selection visuals
+            lockGameForToday(false);
+            const downloadBtn = document.getElementById("download-result");
+            if (downloadBtn) {
+                downloadBtn.style.display = "inline";
+            }
+
+            // Auto-open the lesson modal if available.
+            if (currentLanguage !== "eng" && typeof solution === "object" && solution.lesson) {
+                showModal(solution.lesson, true);
+            }
+            return;
+        }
+
+        // Not a winning guess.
+        currentGuessIndex++;
+        if (currentGuessIndex <= guessRows) {
+            saveGameState();
+            drawColumns(); // Refresh columns to clear selection for the new row
+        } else {
+            updateGameResult("lose");
+            // Prepare the loss message.
+            let solWord = (typeof solution === 'object' && solution.word) ? solution.word : solution;
+            let definition = (typeof solution === 'object' && solution.definition) ? solution.definition : "";
+            let lossMessageTemplate = translations[currentLanguage].lossMessage;
+            let lossMessage = lossMessageTemplate.replace("{word}", solWord);
+
+            // Append the definition for non‑English games.
+            if (currentLanguage !== "eng" && typeof solution === "object" && solution.definition) {
+                lossMessage += "<span class=\"winning-answer\"><br><em>Definition:</em> " + solution.definition;
+                // Append a clickable link that calls showModal() with the lesson from the word object.
+                // The replace call escapes any single quotes in the lesson content.
+                lossMessage += " (<a href='#' class='lesson-link' onclick=\"showModal('" +
+                    solution.lesson.replace(/'/g, "\\'") + "'); return false;\">Word Lesson!</a>)</span><br /><br />";
+            }
+            removeGuessButton(lossMessage);
+            gameCompleted = true;
+            lockGameForToday(false);
+
+            smoothScrollToTop(2000);
+
+            // Hide letter selection area if needed.
+            // hideLetterSelectionArea();
+            trackGameLose(currentGuessIndex);
+            const downloadBtn = document.getElementById("download-result");
+            if (downloadBtn) { downloadBtn.style.display = "inline"; }
+
+            // Auto-open the lesson modal if available.
+            if (currentLanguage !== "eng" && typeof solution === "object" && solution.lesson) {
+                showModal(solution.lesson, true);
+            }
+        }
+        drawColumns();
+    }
+
+    function removeGuessButton(optionalMessage) {
+        const guessBtnContainer = document.getElementById("guess-button-container");
+        guessBtnContainer.innerHTML = "";
+        if (optionalMessage) {
+            const span = document.createElement("span");
+            span.innerHTML = optionalMessage;
+            guessBtnContainer.appendChild(span);
+        } else {
+            createGuessButton();
+        }
+    }
+
+    function createGuessButton() {
+        const guessBtnContainer = document.getElementById("guess-button-container");
+        guessBtnContainer.innerHTML = "";
+        const btn = document.createElement("button");
+        btn.id = "guess-button";
+        btn.textContent = translations[currentLanguage].check;
+        btn.addEventListener("click", makeGuess);
+        guessBtnContainer.appendChild(btn);
+    }
+
+    function restartGame() {
+        if (getLangCookie("DSG_lastPlayed") === getTodayStr()) {
+            alert(translations[currentLanguage].already);
+            lockGameForToday(true);
+            return;
+        }
+        let winStreakCookie = parseInt(getLangCookie("DSG_winStreak") || "0", 10);
+        if (winStreakCookie >= WIN_STREAK_THRESHOLD_3_ROWS) {
+            guessRows = 3;
+        } else if (winStreakCookie >= WIN_STREAK_THRESHOLD_4_ROWS) {
+            guessRows = 4;
+        } else {
+            guessRows = 5;
+        }
+        currentGuessIndex = 1;
+        gameCompleted = false;
+        columnOrder = seededShuffle([0, 1, 2, 3, 4], seededRandom(dailySeed + 1));
+        guesses = {};
+        for (let r = 1; r <= guessRows; r++) {
+            guesses[r] = [null, null, null, null, null];
+        }
+        clearGuessBoard();
+        document.getElementById("game-status").innerText = "";
+        updateMovesLeft();
+        drawColumns();
+        generateGuessBoard();
+        createGuessButton();
+        document.getElementById("board").style.display = "flex";
+        saveGameState();
+        const board = document.getElementById("board");
+        board.classList.add("hidden-board");
+        board.classList.remove("visible");
+        document.getElementById("columns-container").classList.remove("hidden");
+    }
+
+    function updateGuessButton() {
+        const guessButton = document.getElementById("guess-button");
+        if (!guessButton) {
+            return;
+        }
+        if (guesses[currentGuessIndex].includes(null)) {
+            guessButton.disabled = true;
+        } else {
+            guessButton.disabled = false;
+        }
+    }
+
+    window.onload = () => {
+        // Reset daily streak if last game was more than one day ago.
+        const todayStr = getTodayStr();
+        const lastPlayedStr = getLangCookie("DSG_lastPlayed");
+        if (lastPlayedStr) {
+            // Convert the stored YYYY-MM-DD string to a Date (using midnight as the time)
+            const lastPlayedDate = new Date(lastPlayedStr + "T00:00:00");
+            const todayDate = new Date(todayStr + "T00:00:00");
+            const diffDays = (todayDate - lastPlayedDate) / (1000 * 60 * 60 * 24);
+            // If the last played day is more than 1 day old, reset the streak.
+            if (diffDays > 1) {
+                setLangCookie("DSG_streak", 0, 365);
+            }
+        }
+
+        if (getLangCookie("DSG_lastPlayed") === getTodayStr() && getLangCookie("DSG_gameState")) {
+            var stateStr = getLangCookie("DSG_gameState");
+            var state = JSON.parse(stateStr);
+            gameCompleted = (state.outcome === "win" || state.outcome === "lose");
+            restoreGameState(state);
+        } else {
+            initGame();
+        }
+        updateGuessButton();
+        updateStreakDisplay();
+        updateLabels();
+        console.log("Solution for today:", solution);
+        checkIfPlayedToday();
+        if (gameCompleted) {
+            const downloadBtn = document.getElementById("download-result");
+            if (downloadBtn) {
+                downloadBtn.style.display = "block";
+            }
+        }
+    };
+    window.makeGuess = makeGuess;
+    window.restartGame = restartGame;
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // Assume gameLanguage and gameEnded are global variables defined by the game logic.
+        // For non-English games, if the game has ended and the modal hasn't been shown before, auto-open it.
+        if (window.gameLanguage && window.gameLanguage !== 'English' && window.gameEnded && !localStorage.getItem('modalShown')) {
+            // Assume window.currentWord is the word object for the current game round.
+            var lessonContent = window.currentWord.lesson;
+            showModal(lessonContent);
+        }
+
+        const hintTile = document.getElementById("logo-hint");
+        if (hintTile) {
+            hintTile.addEventListener("click", function() {
+                const hintKey = "hintUsed_" + currentLanguage;
+                const todayStr = getTodayStr();
+                // Check if the hint was already used today for the current language
+                if (localStorage.getItem(hintKey) === todayStr) {
+                    alert("You have already used your hint for today.");
+                    return;
+                }
+
+                if (confirm("Do you want to uncover a letter hint?")) {
+                    // If solution is an object, extract its 'word' property; otherwise, use solution directly.
+                    const solStr = (typeof solution === "object" && solution.word) ? solution.word : solution;
+                    let lettersToReveal = [];
+                    for (let letter of solStr) {
+                        if (!foundLetters.has(letter)) {
+                            lettersToReveal.push(letter);
+                        }
+                    }
+                    if (lettersToReveal.length > 0) {
+                        let hintLetter = lettersToReveal[Math.floor(Math.random() * lettersToReveal.length)];
+                        alert("Hint: " + hintLetter);
+
+                        // Mark this letter as found and update the display.
+                        foundLetters.add(hintLetter);
+                        drawColumns();
+
+                        // Record that the hint has been used today for this language.
+                        localStorage.setItem(hintKey, todayStr);
+                    } else {
+                        alert("All letters have already been uncovered!");
+                    }
+                }
+            });
+        }
+
+
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('help-modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        // Automatically open intro video modal for new users:
+        if (!localStorage.getItem("hasSeenVideo")) {
+            console.log("olin");
+            // Mark the video as seen
+            localStorage.setItem("hasSeenVideo", "true");
+
+            // Build the iframe with autoplay enabled
+            var videoIframe = '<div class="modal-content" id="video-content">' +
+                '<span class="close" id="video-close">&times;</span>' +
+                '<h2>Welcome to ShiftyWords!</h2>' +
+                '<div class="responsive-video">' +
+                '<iframe src="https://www.youtube.com/embed/1bZKr2G1-bY?autoplay=1" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope;" allowfullscreen></iframe>' +
+                '</div>' +
+                '</div>';
+
+
+            // Insert the video into the modal
+            var videoModal = document.getElementById("video-modal");
+            videoModal.innerHTML = videoIframe;
+            videoModal.style.display = "flex";
+
+            document.getElementById("video-close").addEventListener("click", function() {
+                document.getElementById("video-modal").style.display = "none";
+            });
+
+        }
+
+        // Open language selector modal when icon is clicked, but only if no game is in progress.
+        document.getElementById("change-language").addEventListener("click", function() {
+            // Check if a game is in progress. Adjust this condition based on your game logic.
+            if (!gameCompleted && currentGuessIndex > 1) {
+                alert(translations[currentLanguage].switchAfter);
+                return;
+            }
+            document.getElementById("language-modal").style.display = "flex";
+        });
+
+        // Close the modal when the close button is clicked.
+        document.getElementById("language-close").addEventListener("click", function() {
+            document.getElementById("language-modal").style.display = "none";
+        });
+
+        // Add click listeners to each language option.
+        const languageItems = document.querySelectorAll("#language-list li");
+        languageItems.forEach(function(item) {
+            item.addEventListener("click", function() {
+                const selectedLang = this.getAttribute("data-lang");
+                localStorage.setItem("currentLanguage", selectedLang);
+                currentLanguage = selectedLang;
+                // Reload the page so that external translation files and cookies use the new language.
+                window.location.reload();
+            });
+        });
+
+        // Close modal if clicking outside the modal content.
+        window.addEventListener("click", function(event) {
+            const modal = document.getElementById("language-modal");
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        });
+
+        // Close modal if clicking outside the modal content.
+        window.addEventListener("click", function(event) {
+            const modal = document.getElementById("video-modal");
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        });
+
+
+        // Build the file name based on currentLanguage
+        const helpFile = `help_${currentLanguage}.html`;
+
+        // Fetch the external file and insert its content into the help modal
+        fetch(helpFile)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                // Insert the fetched HTML into the modal container.
+                document.getElementById("help-modal").innerHTML = html;
+
+                // Optionally, you can add event listeners here for the close button:
+                const closeBtn = document.querySelector("#help-modal .close");
+                if (closeBtn) {
+                    closeBtn.addEventListener("click", function() {
+                        document.getElementById("help-modal").style.display = "none";
+                    });
+                }
+            })
+            .catch(error => console.error("Error loading help file:", error));
+
+        // update logo to color for current level
+        var winStreak = getWinStreak();
+        var levelClass = determineLevel(winStreak);
+        var container = document.getElementById("logoContainer");
+        container.classList.remove("level-gray", "level-purple", "level-gold", "level-impossible");
+        container.classList.add(levelClass);
+
+
+        // Also update the body so level-specific CSS can target the guess button
+        document.body.classList.remove("level-gray", "level-purple", "level-gold", "level-impossible");
+        document.body.classList.add(levelClass);
+
+        var levelText = levelLabelText(levelClass);
+        var languageDisplayName = languageNames[currentLanguage] || currentLanguage;
+
+        // Use translations if available, else default to "Help"
+        var helpText = (typeof translations !== "undefined" &&
+                translations[currentLanguage] &&
+                translations[currentLanguage].help) ?
+            translations[currentLanguage].help :
+            "Instructions";
+
+        var label = document.getElementById("currentLevelLabel");
+        // Set the label's innerHTML to include the inline help link
+        label.innerHTML = levelText + " | " + languageDisplayName + " | <a href=\"#\" id=\"help-link-inline\">" + helpText + "</a>";
+
+
+        // Attach an event listener to the inline help link
+        document.getElementById("help-link-inline").addEventListener("click", function(e) {
+            e.preventDefault();
+            document.getElementById("help-modal").style.display = "flex";
+        });
+
+    });
+
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        if (typeof radius === "number") {
+            radius = { tl: radius, tr: radius, br: radius, bl: radius };
+        } else {
+            var defaultRadius = { tl: 0, tr: 0, br: 0, bl: 0 };
+            for (var side in defaultRadius) {
+                radius[side] = radius[side] || defaultRadius[side];
+            }
+        }
+        ctx.beginPath();
+        ctx.moveTo(x + radius.tl, y);
+        ctx.lineTo(x + width - radius.tr, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+        ctx.lineTo(x + width, y + height - radius.br);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
+        ctx.lineTo(x + radius.bl, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+        ctx.lineTo(x, y + radius.tl);
+        ctx.quadraticCurveTo(x, y, x + radius.tl, y);
+        ctx.closePath();
+        if (fill) {
+            ctx.fill();
+        }
+        if (stroke) {
+            ctx.stroke();
+        }
+    }
+
+    function getResultRow(rowIndex) {
+        if (!guesses[rowIndex] || guesses[rowIndex].includes(null)) {
+            return null;
+        }
+        const guessStr = guesses[rowIndex].join("");
+        return checkGuess(guessStr, solution);
+    }
+
+    function generateResultImage() {
+        return new Promise((resolve) => {
+            const canvasWidth = 1080;
+            const ctx = document.createElement("canvas").getContext("2d"); // Temp context for measuring
+
+            // Calculate Content Heights
+            const logoWidth = 400;
+            // We need to load the logo to get aspect ratio, but we can assume a reasonable default or wait for load.
+            // Better to load logo first to get dimensions.
+            const logo = new Image();
+            logo.crossOrigin = "anonymous";
+            logo.src = "shifty_logo_transparent.png";
+
+            logo.onload = () => {
+                const aspectRatio = logo.width / logo.height;
+                const logoHeight = logoWidth / aspectRatio;
+
+                // Grid Dimensions
+                const completedRows = [];
+                for (let i = 1; i <= guessRows; i++) {
+                    const feedback = getResultRow(i);
+                    if (feedback) completedRows.push(feedback);
+                }
+
+                // If no rows, we still want to show something? The original code alerted and returned.
+                // Let's assume there's at least one row if they are sharing, or handle empty gracefully.
+                const rowsToShow = completedRows.length > 0 ? completedRows.length : 1;
+
+                const columns = 5;
+                const tileGap = 15;
+                const tileSize = 130;
+                const gridHeight = (rowsToShow * tileSize) + ((rowsToShow - 1) * tileGap);
+
+                // Text Heights
+                const levelTextHeight = 60; // Approx space for level text
+                const footerTextHeight = 150; // Approx space for footer text
+
+                // Vertical Spacing
+                const padding = 40; // Top/Bottom padding inside card
+                const elementGap = 30; // Gap between elements
+                const cardTopMargin = 50;
+                const cardBottomMargin = 50;
+                const footerTopMargin = 50;
+                const footerBottomMargin = 50;
+
+                // Calculate Card Height
+                // Card Content: Padding + Logo + Gap + LevelText + Gap + Grid + Padding
+                const cardContentHeight = padding + logoHeight + elementGap + levelTextHeight + elementGap + gridHeight + padding;
+                const cardHeight = cardContentHeight;
+
+                // Calculate Canvas Height
+                // Canvas Content: CardTopMargin + CardHeight + FooterTopMargin + FooterTextHeight + FooterBottomMargin
+                const totalHeight = cardTopMargin + cardHeight + footerTopMargin + footerTextHeight + footerBottomMargin;
+
+                const canvasHeight = Math.ceil(totalHeight);
+
+                // Create actual canvas
+                const canvas = document.createElement("canvas");
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+                const finalCtx = canvas.getContext("2d");
+
+                // 1. Draw Background
+                const bgGradient = finalCtx.createLinearGradient(0, 0, 0, canvasHeight);
+                bgGradient.addColorStop(0, "#f3f4f6");
+                bgGradient.addColorStop(1, "#e5e7eb");
+                finalCtx.fillStyle = bgGradient;
+                finalCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                // 2. Draw Card
+                const cardWidth = 900;
+                const cardX = (canvasWidth - cardWidth) / 2;
+                const cardY = cardTopMargin;
+                const cardRadius = 40;
+
+                // Shadow
+                finalCtx.shadowColor = "rgba(0, 0, 0, 0.1)";
+                finalCtx.shadowBlur = 40;
+                finalCtx.shadowOffsetY = 20;
+
+                finalCtx.fillStyle = "#ffffff";
+                roundRect(finalCtx, cardX, cardY, cardWidth, cardHeight, cardRadius, true, false);
+
+                // Reset shadow
+                finalCtx.shadowColor = "transparent";
+                finalCtx.shadowBlur = 0;
+                finalCtx.shadowOffsetY = 0;
+
+                // 3. Draw Logo
+                const logoX = (canvasWidth - logoWidth) / 2;
+                const logoY = cardY + padding;
+                finalCtx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+
+                // 4. Draw Level Text
+                let levelText;
+                if (guessRows === 2) levelText = "Impossible Level";
+                else if (guessRows === 3) levelText = "Gold Level";
+                else if (guessRows === 4) levelText = "Purple Level";
+                else levelText = "Gray Level";
+
+                const languageDisplayName = languageNames[currentLanguage] || currentLanguage;
+                const combinedText = `${levelText} - ${languageDisplayName}`;
+
+                finalCtx.font = "bold 24px Inter, sans-serif";
+                finalCtx.fillStyle = "#1f2937";
+                finalCtx.textAlign = "center";
+                const textY = logoY + logoHeight + elementGap + 10; // Adjust baseline
+                finalCtx.fillText(combinedText, canvasWidth / 2, textY);
+
+                // 5. Draw Grid
+                if (completedRows.length > 0) {
+                    const gridWidth = (columns * tileSize) + ((columns - 1) * tileGap);
+                    const gridX = (canvasWidth - gridWidth) / 2;
+                    const gridStartY = textY + elementGap + 10;
+
+                    for (let r = 0; r < completedRows.length; r++) {
+                        const feedback = completedRows[r];
+                        for (let c = 0; c < columns; c++) {
+                            let fillColor;
+                            if (dailyResult === "win" && r === completedRows.length - 1) {
+                                fillColor = "#10b981";
+                            } else {
+                                switch (feedback[c]) {
+                                    case "correct":
+                                        fillColor = "#10b981";
+                                        break;
+                                    case "misplaced":
+                                        fillColor = "#f59e0b";
+                                        break;
+                                    case "wrong":
+                                    default:
+                                        fillColor = "#4b5563";
+                                        break;
+                                }
+                            }
+
+                            const tileX = gridX + c * (tileSize + tileGap);
+                            const tileY = gridStartY + r * (tileSize + tileGap);
+
+                            finalCtx.fillStyle = fillColor;
+                            roundRect(finalCtx, tileX, tileY, tileSize, tileSize, 12, true, false);
+                        }
+                    }
+                }
+
+                // 6. Draw Footer Text
+                // 6. Draw Footer Text
+                let resultText;
+                if (dailyResult === "win") {
+                    resultText = "I beat ShiftyWords.com today!\nCan you make it to Impossible?";
+                } else {
+                    resultText = "ShiftyWords.com beat me today.\nCan you do better?";
+                }
+
+                const lines = resultText.split("\n");
+                finalCtx.font = "bold 42px Inter, sans-serif";
+                finalCtx.fillStyle = "#1f2937";
+                finalCtx.textAlign = "center";
+                const footerY = cardY + cardHeight + footerTopMargin + 20; // Start of footer text
+
+                lines.forEach((line, i) => {
+                    finalCtx.fillText(line, canvasWidth / 2, footerY + (i * 55));
+                });
+
+                resolve(canvas.toDataURL("image/png"));
+            };
+
+            logo.onerror = (err) => {
+                console.error("Error loading logo:", err);
+                resolve(null); // Or handle error appropriately
+            };
+        });
+    }
+
+    function hideLetterSelectionArea() {
+        const container = document.getElementById("columns-container");
+        if (container && !container.classList.contains("hidden")) {
+            container.classList.add("hidden");
+        }
+    }
+    document.getElementById('download-result').addEventListener('click', function(event) {
+        event.preventDefault(); // Prevents the default anchor behavior
+        generateResultImage().then(dataUrl => {
+            // Helper to trigger download
+            const triggerDownload = (url) => {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'ShiftyWords-Result.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            // Try Web Share API first
+            if (navigator.share) {
+                fetch(dataUrl)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        const file = new File([blob], 'ShiftyWords-Result.png', { type: 'image/png' });
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            navigator.share({
+                                files: [file],
+                                title: 'Shifty Words Result',
+                                text: 'Check out my Shifty Words result!'
+                            }).catch(err => {
+                                console.error('Error sharing:', err);
+                                // If user cancels or share fails, we don't necessarily need to download, 
+                                // but if it was a technical error maybe we should. 
+                                // For now, let's just log it. If they want to download they can try again 
+                                // or we could fallback. Let's fallback on error just in case.
+                                if (err.name !== 'AbortError') {
+                                    triggerDownload(dataUrl);
+                                }
+                            });
+                        } else {
+                            triggerDownload(dataUrl);
+                        }
+                    });
+            } else {
+                triggerDownload(dataUrl);
+            }
+        });
+    });
+    </script>
+    <div id="help-modal" class="modal"></div>
+    <div id="video-modal" class="modal"></div>
+    <script>
+    // Called when the game starts
+    function trackGameStart() {
+        gtag('event', 'game_start', {
+            event_category: 'Game',
+            event_label: 'Game Start',
+            language: currentLanguage
+        });
+    }
+
+    // Called when the game is won; 'attempts' is the number of attempts made.
+    function trackGameWin(attempts) {
+        gtag('event', 'game_win', {
+            event_category: 'Game',
+            event_label: 'Game Win',
+            attempts: attempts,
+            game_language: currentLanguage
+        });
+    }
+
+    // Called when the game is lost
+    function trackGameLose() {
+        gtag('event', 'game_lose', {
+            event_category: 'Game',
+            event_label: 'Game Lose',
+            game_language: currentLanguage
+        });
+    }
+    // Example function to get the user's win streak from localStorage (or default to 0)
+    function getWinStreak() {
+        var streak = parseInt(getLangCookie("DSG_winStreak") || "0", 10);
+        return isNaN(streak) ? 0 : streak;
+    }
+
+    // Determine level class based on win streak thresholds.
+    function determineLevel(winStreak) {
+        if (winStreak < 3) {
+            return "level-gray";
+        } else if (winStreak < 6) {
+            return "level-purple";
+        } else if (winStreak < 10) {
+            return "level-gold";
+        } else {
+            return "level-impossible";
+        }
+    }
+
+    // Map level class to a display text.
+    function levelLabelText(levelClass) {
+        switch (levelClass) {
+            case "level-gray":
+                return "Gray Level";
+            case "level-purple":
+                return "Purple Level";
+            case "level-gold":
+                return "Gold Level";
+            case "level-impossible":
+                return "Impossible Level";
+            default:
+                return "";
+        }
+    }
+
+    function updateLogoLevel(result) {
+        const container = document.getElementById("logoContainer");
+        const label = document.getElementById("currentLevelLabel");
+
+        if (result === "lose") {
+            // On a loss, reset to Gray Level.
+            container.classList.remove("level-gray", "level-purple", "level-gold", "level-impossible");
+            container.classList.add("level-gray");
+            label.textContent = "Gray Level";
+            currentLevelClass = "level-gray";
+        } else if (result === "win") {
+            // On a win, determine the new level based on win streak.
+            const winStreak = parseInt(getLangCookie("DSG_winStreak") || "0", 10);
+            const newLevelClass = determineLevel(winStreak + 1);
+
+            // If the level has changed, celebrate!
+            if (newLevelClass !== currentLevelClass) {
+                celebrateLevelUp();
+            }
+
+            // Update logo and label.
+            container.classList.remove("level-gray", "level-purple", "level-gold", "level-impossible");
+            container.classList.add(newLevelClass);
+            label.textContent = levelLabelText(newLevelClass);
+            currentLevelClass = newLevelClass;
+        }
+    }
+
+    function celebrateLevelUp() {
+        // Add a temporary class to animate the logo.
+        const container = document.getElementById("logoContainer");
+        container.classList.add("celebrate-logo");
+        // Remove the class after the animation (2 seconds)
+        setTimeout(() => {
+            container.classList.remove("celebrate-logo");
+        }, 2000);
+    }
+    // Function to show the modal with given content
+    // Updated showModal function with optional delay for auto openings
+    function showModal(content, autoOpen) {
+        const modal = document.getElementById('wordModal');
+        const modalContent = document.getElementById('modalContent');
+
+        // Function to actually display the modal
+        const displayModal = () => {
+            modalContent.innerHTML = content;
+            modal.style.display = 'flex';
+            // Remove and re-add the fade-in class to trigger the animation
+            modal.classList.remove('fade-in');
+            void modal.offsetWidth; // force reflow to restart animation
+            modal.classList.add('fade-in');
+        };
+
+        if (autoOpen) {
+            setTimeout(displayModal, 2000);
+        } else {
+            displayModal();
+        }
+    }
+
+
+    // Function to hide the modal
+    function hideModal() {
+        document.getElementById('wordModal').style.display = 'none';
+    }
+
+    function smoothScrollToTop(duration) {
+        const startY = window.pageYOffset;
+        const startTime = performance.now();
+
+        function scrollAnimation(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Ease function: easeInOutQuad
+            const easeInOutQuad = progress < 0.5 ?
+                2 * progress * progress :
+                -1 + (4 - 2 * progress) * progress;
+
+            window.scrollTo(0, startY * (1 - easeInOutQuad));
+
+            if (elapsed < duration) {
+                requestAnimationFrame(scrollAnimation);
+            }
+        }
+
+        requestAnimationFrame(scrollAnimation);
+    }
+
+
+    // Close modal event listener
+    document.getElementById('closeModal').addEventListener('click', function() {
+        hideModal();
+        // Set a flag so the modal will not auto-open again
+        localStorage.setItem('modalShown', 'true');
+    });
+
+    // Allow user to click on the word definition to re-open the modal.
+    // Assume each word definition is in an element with the class "definition" and
+    // a data attribute "data-lesson" that holds the lesson content.
+    document.querySelectorAll('.definition').forEach(function(el) {
+        el.addEventListener('click', function() {
+            var content = el.getAttribute('data-lesson');
+            if (content) {
+                showModal(content);
+            }
+        });
+    });
+    </script>
+</body>
+
+</html>

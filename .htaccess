@@ -1,0 +1,14 @@
+# -- Set the default character encoding to UTF-8 --
+AddDefaultCharset UTF-8
+
+# -- Disable LiteSpeed Caching --
+<IfModule LiteSpeed>
+    CacheDisable public /
+</IfModule>
+
+# -- Send No-Cache Headers to Browsers --
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Shifty Logo Levels</title>
+  <style>
+    /* Base layout for the logo container */
+    .shifty-logo {
+      position: relative;
+      width: 430px;   /* Adjust width as needed */
+      height: 80px;   /* Enough space for arrows, tiles, and "words" */
+      margin: 20px auto;
+      //background-color: #f9f9f9;
+    }
+    
+    /* Arrows container (placed behind the tiles) */
+    .arrows {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1; /* behind tiles and words */
+    }
+    /* Base style for both arrows */
+    .arrow {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      top: 20px;  /* vertically centered */
+      /* Base arrow shape for left arrow */
+      clip-path: polygon(
+        0% 50%,
+        90% 0%,
+        100% 0%,
+        100% 100%,
+        90% 100%
+      );
+    }
+    /* Left arrow positioned at the left edge */
+    .arrow-left {
+      left: 0;
+    }
+    /* Right arrow positioned at the right edge with reversed shape */
+    .arrow-right {
+      right: 0;
+      clip-path: polygon(
+        0% 0%,
+        10% 0%,
+        100% 50%,
+        10% 100%,
+        0% 100%
+      );
+    }
+    
+    /* Tiles container (on top of the arrows) */
+    .tiles {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      top: 20px;
+      left: 50px; /* Leaves space so tiles don't overlap left arrow */
+      z-index: 2;
+    }
+    /* Base style for each tile */
+    .tile {
+      width: 35px;
+      height: 35px;
+      border: 2px solid black;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 18px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      margin-right: 8px;
+    }
+    /* "words" text, placed just to the right of the last tile */
+    .words {
+      margin-left: 0px;
+      font-size: 20px;
+      font-family: sans-serif;
+    }
+    
+    /* Level label below the logo, centered */
+    .level-label {
+      text-align: center;
+      font-size: 22px;
+      font-family: sans-serif;
+      margin-top: 10px;
+    }
+    
+    /* ----- Level-specific styles ----- */
+    
+    /* Gray Level */
+    .level-gray .arrow {
+      background-color: gray;
+    }
+    .level-gray .tile {
+      background-color: lightgray;
+      color: black;
+    }
+    .level-gray .words {
+      color: black;
+    }
+    
+    /* Purple Level */
+    .level-purple .arrow {
+      background-color: purple;
+    }
+    .level-purple .tile {
+      background-color: purple;
+      color: white;
+    }
+    .level-purple .words {
+      color: black;
+    }
+    
+    /* Gold Level */
+    .level-gold .arrow {
+      background-color: gold;
+    }
+    .level-gold .tile {
+      background-color: gold;
+      color: black;
+    }
+    .level-gold .words {
+      color: black;
+    }
+    
+    /* Impossible Level with a gradient from blue to green to yellow */
+    .level-impossible .arrow {
+      background: linear-gradient(45deg, blue, green, yellow);
+    }
+    .level-impossible .tile {
+      background: linear-gradient(45deg, blue, green, yellow);
+      color: white;
+    }
+    .level-impossible .words {
+      color: black;
+    }
+    
+    /* Level switcher links styling */
+    .level-switcher {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .level-switcher a {
+      margin: 0 10px;
+      text-decoration: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: blue;
+    }
+#currentLevelLabel {
+  font-size: 12px;      /* Small text */
+  text-align: center;   /* Center the text */
+  margin-top: -35px;      /* Small gap directly below the logo */
+  //color: #333;          /* Optional: a dark gray color */
+}
+
+  </style>
+</head>
+<body>
+  <!-- Shifty logo container. The default level is Gray. -->
+  <div id="logoContainer" class="shifty-logo level-gray">
+    <!-- Arrows (placed behind the tiles) -->
+    <div class="arrows">
+      <div class="arrow arrow-left"></div>
+      <div class="arrow arrow-right"></div>
+    </div>
+    <!-- Tiles and "words" (in front) -->
+    <div class="tiles">
+      <div class="tile">S</div>
+      <div class="tile">H</div>
+      <div class="tile">I</div>
+      <div class="tile">F</div>
+      <div class="tile">T</div>
+      <div class="tile">Y</div>
+      <div class="words">words</div>
+    </div>
+  </div>
+  
+  <!-- Level label below the logo -->
+  <div id="currentLevelLabel" class="level-label">Gray Level</div>
+  
+  <!-- Links to switch levels -->
+  <div class="level-switcher">
+    <a data-level="level-gray">Gray Level</a>
+    <a data-level="level-purple">Purple Level</a>
+    <a data-level="level-gold">Gold Level</a>
+    <a data-level="level-impossible">Impossible Level</a>
+  </div>
+  
+  <script>
+    // When a level switcher link is clicked, update the logo container's class
+    // and update the current level label.
+    document.querySelectorAll('.level-switcher a').forEach(function(link) {
+      link.addEventListener('click', function() {
+        var levelClass = this.getAttribute('data-level');
+        var container = document.getElementById('logoContainer');
+        var label = document.getElementById('currentLevelLabel');
+        // Remove any existing level classes.
+        container.classList.remove('level-gray', 'level-purple', 'level-gold', 'level-impossible');
+        // Add the selected level class.
+        container.classList.add(levelClass);
+        
+        // Update the label text based on the clicked link's text.
+        label.textContent = this.textContent;
+      });
+    });
+  </script>
+</body>
+</html>
