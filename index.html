@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.7">
+    <link rel="stylesheet" href="styles.css?v=1.7.1">
 </head>
 
 <body>
@@ -58,14 +58,6 @@
     <div id="moves-left">
         <span id="label-streak" class="label">Streak:</span> <span id="streak">0</span> &nbsp;
         <span id="label-winStreak" class="label">Win Streak:</span> <span id="winStreak">0</span>
-    </div>
-    <!-- Live guess preview: shows the current row as columns reorder -->
-    <div id="guess-preview" class="guess-preview" aria-hidden="true">
-        <div class="preview-tile" data-pos="0">·</div>
-        <div class="preview-tile" data-pos="1">·</div>
-        <div class="preview-tile" data-pos="2">·</div>
-        <div class="preview-tile" data-pos="3">·</div>
-        <div class="preview-tile" data-pos="4">·</div>
     </div>
     <!-- Letter selection board -->
     <div id="columns-container"></div>
@@ -120,7 +112,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.7 May 2, 2026";
+    const appVersion = "v1.7.1 May 2, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -794,65 +786,6 @@
     }
 
 
-    // Swap a column with its neighbor in the given direction (-1 left, +1 right).
-    // Wraps around the ends. Costs 1 move. Same effect as a one-step drag.
-    function swapColumns(displayPos, direction) {
-        if (gameCompleted) return;
-        if (movesLeft <= 0) return;
-        if (!Array.isArray(columnOrder) || columnOrder.length === 0) return;
-
-        var n = columnOrder.length;
-        var targetPos = ((displayPos + direction) % n + n) % n;
-        if (targetPos === displayPos) return;
-
-        var oldOrder = columnOrder.slice();
-        var newOrder = columnOrder.slice();
-        var tmp = newOrder[displayPos];
-        newOrder[displayPos] = newOrder[targetPos];
-        newOrder[targetPos] = tmp;
-
-        if (arraysEqual(newOrder, oldOrder)) return;
-        trackColumnMoved();
-
-        // If the current row has letters, remap them so each letter follows its column.
-        var oldGuess = guesses[currentGuessIndex] ? guesses[currentGuessIndex].slice() : [];
-        if (!oldGuess.every(function(l) { return l === null; })) {
-            var newGuess = updateGuessRowAfterDrag(oldOrder, oldGuess, newOrder);
-            guesses[currentGuessIndex] = newGuess;
-            updateGuessRowDOM();
-        }
-
-        columnOrder = newOrder;
-        movesLeft--;
-        updateMovesLeft();
-        saveGameState();
-        drawColumns();
-        updateGuessPreview();
-    }
-
-    // Update the live preview row above the columns. Mirrors the current row.
-    function updateGuessPreview() {
-        var preview = document.getElementById("guess-preview");
-        if (!preview) return;
-        if (gameCompleted) {
-            preview.classList.add("hidden");
-            return;
-        }
-        preview.classList.remove("hidden");
-        var row = guesses && guesses[currentGuessIndex] ? guesses[currentGuessIndex] : [];
-        var tiles = preview.querySelectorAll(".preview-tile");
-        tiles.forEach(function(tile, i) {
-            var letter = row[i];
-            var text = letter ? letter : "·";
-            if (tile.textContent !== text) {
-                tile.textContent = text;
-                tile.classList.add("flash");
-                setTimeout(function() { tile.classList.remove("flash"); }, 350);
-            }
-            tile.classList.toggle("empty", !letter);
-        });
-    }
-
     function drawColumns() {
         const container = document.getElementById("columns-container");
         container.innerHTML = "";
@@ -872,40 +805,10 @@
 
 
 
-            // Header row: left arrow, drag strip, right arrow.
+            // Create drag-handle element.
             const dragHandle = document.createElement("div");
             dragHandle.className = "drag-handle";
-
-            const leftBtn = document.createElement("button");
-            leftBtn.type = "button";
-            leftBtn.className = "column-arrow column-arrow-left";
-            leftBtn.setAttribute("aria-label", "Move column left");
-            leftBtn.innerHTML = "&#x2190;";
-            leftBtn.disabled = movesLeft <= 0 || gameCompleted;
-            leftBtn.addEventListener("click", function(e) {
-                e.stopPropagation();
-                swapColumns(displayPos, -1);
-            });
-
-            const grabStrip = document.createElement("div");
-            grabStrip.className = "grab-strip";
-            grabStrip.innerHTML = movesLeft > 0 ? "&middot; &middot; &middot;" : "&times;";
-            grabStrip.title = "Drag to move column";
-
-            const rightBtn = document.createElement("button");
-            rightBtn.type = "button";
-            rightBtn.className = "column-arrow column-arrow-right";
-            rightBtn.setAttribute("aria-label", "Move column right");
-            rightBtn.innerHTML = "&#x2192;";
-            rightBtn.disabled = movesLeft <= 0 || gameCompleted;
-            rightBtn.addEventListener("click", function(e) {
-                e.stopPropagation();
-                swapColumns(displayPos, 1);
-            });
-
-            dragHandle.appendChild(leftBtn);
-            dragHandle.appendChild(grabStrip);
-            dragHandle.appendChild(rightBtn);
+            dragHandle.innerHTML = movesLeft > 0 ? "&#x2190; &#x2192;" : "X";
             if (movesLeft <= 0) {
                 dragHandle.classList.add("disabled");
             }
@@ -946,7 +849,7 @@
         // Initialize SortableJS on the container.
         sortableInstance = Sortable.create(container, {
             animation: 150,
-            handle: ".grab-strip",
+            handle: ".drag-handle",
             forceFallback: true,
             disabled: movesLeft <= 0,
             onStart: function(evt) {
@@ -980,7 +883,6 @@
                     updateMovesLeft();
                     saveGameState();
                     drawColumns();
-                    updateGuessPreview();
                     return;
                 }
 
@@ -1002,7 +904,6 @@
                 // Update the permanent column order and save state.
                 columnOrder = newOrder;
                 saveGameState();
-                updateGuessPreview();
             }
         });
     }
@@ -1165,7 +1066,6 @@
         updateGuessButton();
         saveGameState();
         drawColumns(); // Refresh columns to show selection
-        updateGuessPreview();
     }
 
     function customSmoothScrollTo(targetY, duration) {
@@ -1423,7 +1323,6 @@
         if (currentGuessIndex <= guessRows) {
             saveGameState();
             drawColumns(); // Refresh columns to clear selection for the new row
-            updateGuessPreview();
             nudgeHintIfStruggling();
         } else {
             updateGameResult("lose");
@@ -1516,9 +1415,6 @@
         board.classList.add("hidden-board");
         board.classList.remove("visible");
         document.getElementById("columns-container").classList.remove("hidden");
-        var prevEl = document.getElementById("guess-preview");
-        if (prevEl) prevEl.classList.remove("hidden");
-        updateGuessPreview();
         var rc = document.getElementById("result-card");
         if (rc) {
             rc.classList.add("hidden");
@@ -1592,7 +1488,6 @@
         updateGuessButton();
         updateStreakDisplay();
         updateLabels();
-        updateGuessPreview();
         console.log("Solution for today:", solution);
         if (puzzleMode === "daily") {
             checkIfPlayedToday();
@@ -2649,8 +2544,6 @@
         // Hide the letter selection grid so the card takes its place visually.
         var columns = document.getElementById("columns-container");
         if (columns) columns.classList.add("hidden");
-        var preview = document.getElementById("guess-preview");
-        if (preview) preview.classList.add("hidden");
 
         startResultCountdown(document.getElementById("result-countdown"));
     }
