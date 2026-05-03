@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.22">
+    <link rel="stylesheet" href="styles.css?v=1.23">
 </head>
 
 <body>
@@ -53,6 +53,8 @@
     </div>
     <!-- Letter selection board -->
     <div id="columns-container"></div>
+    <!-- Result card replaces the columns area when the day's game is over -->
+    <div id="result-card" class="result-card hidden" aria-live="polite"></div>
     <!-- Guess button container -->
     <div class="controls-container">
         <span id="guess-button-container">
@@ -102,7 +104,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.22 05/2026";
+    const appVersion = "v1.23 05/2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -421,6 +423,8 @@
             //document.getElementById("guess-button-container").style.display = "none";
             removeGuessButton(message);
             hideLetterSelectionArea();
+            // Restore the result card too, so revisiting the page mid-day shows the answer.
+            renderResultCard(dailyResult === "win" ? "win" : "lose", currentGuessIndex);
         }
     }
 
@@ -746,6 +750,7 @@
                     drawColumns();
                     return;
                 }
+                trackColumnMoved();
 
                 // If the current guess row is empty, we still update the order and decrement moves.
                 if (oldGuess.every(letter => letter === null)) {
@@ -1111,6 +1116,9 @@
         }
         const guess = guesses[currentGuessIndex].join("");
         const feedback = checkGuess(guess, solution);
+        const _solWordForCheck = (typeof solution === 'object' ? solution.word : solution);
+        const _isWinGuess = (guess === _solWordForCheck);
+        trackGuessSubmitted(currentGuessIndex, _isWinGuess);
         for (let col = 0; col < 5; col++) {
             const tileId = `tile-${currentGuessIndex}-${col}`;
             const tile = document.getElementById(tileId);
@@ -1177,6 +1185,7 @@
             if (downloadBtn) {
                 downloadBtn.style.display = "inline";
             }
+            renderResultCard("win", currentGuessIndex);
 
             // Auto-open the lesson modal if available.
             if (currentLanguage !== "eng" && typeof solution === "object" && solution.lesson) {
@@ -1212,8 +1221,8 @@
 
             smoothScrollToTop(2000);
 
-            // Hide letter selection area if needed.
-            // hideLetterSelectionArea();
+            // Show the result card in the columns area.
+            renderResultCard("lose", currentGuessIndex);
             trackGameLose(currentGuessIndex);
             const downloadBtn = document.getElementById("download-result");
             if (downloadBtn) { downloadBtn.style.display = "inline"; }
@@ -1281,6 +1290,16 @@
         board.classList.add("hidden-board");
         board.classList.remove("visible");
         document.getElementById("columns-container").classList.remove("hidden");
+        var rc = document.getElementById("result-card");
+        if (rc) {
+            rc.classList.add("hidden");
+            rc.classList.remove("won", "lost");
+            rc.innerHTML = "";
+        }
+        if (_resultCountdownTimer) {
+            clearInterval(_resultCountdownTimer);
+            _resultCountdownTimer = null;
+        }
     }
 
     function updateGuessButton() {
@@ -1315,6 +1334,7 @@
             var state = JSON.parse(stateStr);
             gameCompleted = (state.outcome === "win" || state.outcome === "lose");
             restoreGameState(state);
+            trackSessionResumed();
         } else {
             initGame();
         }
@@ -1373,6 +1393,7 @@
 
                         // Record that the hint has been used today for this language.
                         localStorage.setItem(hintKey, todayStr);
+                        trackHintUsed();
                     } else {
                         alert("All letters have already been uncovered!");
                     }
@@ -1435,6 +1456,7 @@
         languageItems.forEach(function(item) {
             item.addEventListener("click", function() {
                 const selectedLang = this.getAttribute("data-lang");
+                trackLanguageChanged(currentLanguage, selectedLang);
                 localStorage.setItem("currentLanguage", selectedLang);
                 currentLanguage = selectedLang;
                 // Reload the page so that external translation files and cookies use the new language.
@@ -1490,17 +1512,18 @@
         loadModalFragment("privacy-modal", "privacy.html");
 
         // Footer links open their respective modals.
-        function wireFooterLink(linkId, modalId) {
+        function wireFooterLink(linkId, modalId, label) {
             var link = document.getElementById(linkId);
             if (!link) return;
             link.addEventListener("click", function(e) {
                 e.preventDefault();
                 document.getElementById(modalId).style.display = "flex";
+                trackModalOpened(label);
             });
         }
-        wireFooterLink("footer-help-link", "help-modal");
-        wireFooterLink("footer-terms-link", "terms-modal");
-        wireFooterLink("footer-privacy-link", "privacy-modal");
+        wireFooterLink("footer-help-link", "help-modal", "instructions");
+        wireFooterLink("footer-terms-link", "terms-modal", "terms");
+        wireFooterLink("footer-privacy-link", "privacy-modal", "privacy");
 
         // Click-outside-to-close for the new modals.
         ["help-modal", "terms-modal", "privacy-modal"].forEach(function(id) {
@@ -1539,10 +1562,11 @@
         label.innerHTML = levelText + " | " + languageDisplayName + " | <a href=\"#\" id=\"help-link-inline\">" + helpText + "</a>";
 
 
-        // Attach an event listener to the inline help link
+        // Attach an event listener to the inline help link in the level label
         document.getElementById("help-link-inline").addEventListener("click", function(e) {
             e.preventDefault();
             document.getElementById("help-modal").style.display = "flex";
+            trackModalOpened("instructions");
         });
 
     });
@@ -1765,6 +1789,7 @@
     }
     document.getElementById('download-result').addEventListener('click', function(event) {
         event.preventDefault(); // Prevents the default anchor behavior
+        trackShareClicked();
         generateResultImage().then(dataUrl => {
             // Helper to trigger download
             const triggerDownload = (url) => {
@@ -1812,32 +1837,177 @@
     <div id="privacy-modal" class="modal"></div>
     <div id="video-modal" class="modal"></div>
     <script>
-    // Called when the game starts
+    // ---------- Analytics helpers ----------
+    // Every event gets language, current win streak, current level, and daily streak
+    // automatically attached, so dashboards can slice without us remembering each time.
+    function trackEvent(name, params) {
+        try {
+            var winStreak = (typeof getWinStreak === "function") ? getWinStreak() : 0;
+            var level = (typeof determineLevel === "function") ? determineLevel(winStreak) : "unknown";
+            var dailyStreak = parseInt(getLangCookie("DSG_streak") || "0", 10) || 0;
+            var base = {
+                event_category: 'Game',
+                game_language: currentLanguage,
+                level: level,
+                win_streak: winStreak,
+                daily_streak: dailyStreak,
+                app_version: appVersion
+            };
+            var merged = Object.assign({}, base, params || {});
+            gtag('event', name, merged);
+        } catch (e) {
+            console.warn("trackEvent failed:", e);
+        }
+    }
+
     function trackGameStart() {
-        gtag('event', 'game_start', {
-            event_category: 'Game',
+        trackEvent('game_start', {
             event_label: 'Game Start',
-            language: currentLanguage
+            starting_moves: (typeof startingMoves !== "undefined") ? startingMoves : null,
+            guess_rows: (typeof guessRows !== "undefined") ? guessRows : null
         });
     }
 
-    // Called when the game is won; 'attempts' is the number of attempts made.
     function trackGameWin(attempts) {
-        gtag('event', 'game_win', {
-            event_category: 'Game',
+        var movesUsed = (typeof startingMoves !== "undefined" && typeof movesLeft !== "undefined") ?
+            (startingMoves - movesLeft) : null;
+        trackEvent('game_win', {
             event_label: 'Game Win',
             attempts: attempts,
-            game_language: currentLanguage
+            moves_used: movesUsed,
+            moves_remaining: (typeof movesLeft !== "undefined") ? movesLeft : null
+        });
+        // Streak milestone events fire on win after the streak updates.
+        try {
+            var newStreak = parseInt(getLangCookie("DSG_winStreak") || "0", 10) || 0;
+            var milestones = [3, 6, 10, 25, 50, 100];
+            if (milestones.indexOf(newStreak) !== -1) {
+                trackEvent('streak_milestone', { event_label: 'Win Streak ' + newStreak, milestone: newStreak });
+            }
+        } catch (e) {}
+    }
+
+    function trackGameLose(attempts) {
+        var movesUsed = (typeof startingMoves !== "undefined" && typeof movesLeft !== "undefined") ?
+            (startingMoves - movesLeft) : null;
+        trackEvent('game_lose', {
+            event_label: 'Game Lose',
+            attempts: attempts || null,
+            moves_used: movesUsed,
+            moves_remaining: (typeof movesLeft !== "undefined") ? movesLeft : null
         });
     }
 
-    // Called when the game is lost
-    function trackGameLose() {
-        gtag('event', 'game_lose', {
-            event_category: 'Game',
-            event_label: 'Game Lose',
-            game_language: currentLanguage
+    function trackGuessSubmitted(attemptNumber, isWin) {
+        trackEvent('guess_submitted', {
+            event_label: 'Guess Submitted',
+            attempt_number: attemptNumber,
+            is_win: !!isWin,
+            moves_remaining: (typeof movesLeft !== "undefined") ? movesLeft : null
         });
+    }
+
+    function trackLanguageChanged(fromLang, toLang) {
+        trackEvent('language_changed', {
+            event_label: 'Language Changed',
+            from_language: fromLang,
+            to_language: toLang
+        });
+    }
+
+    function trackHintUsed() {
+        trackEvent('hint_used', { event_label: 'Hint Used' });
+    }
+
+    function trackColumnMoved() {
+        trackEvent('column_moved', {
+            event_label: 'Column Moved',
+            moves_remaining: (typeof movesLeft !== "undefined") ? movesLeft : null
+        });
+    }
+
+    function trackModalOpened(which) {
+        trackEvent('modal_opened', { event_label: 'Modal Opened: ' + which, modal: which });
+    }
+
+    function trackShareClicked() {
+        trackEvent('share_clicked', { event_label: 'Share Clicked' });
+    }
+
+    function trackSessionResumed() {
+        trackEvent('session_resumed', { event_label: 'Session Resumed' });
+    }
+
+    // ---------- Result card (the answer reveal in the columns area) ----------
+    var _resultCountdownTimer = null;
+
+    function startResultCountdown(el) {
+        if (!el) return;
+        function pad(n) { return n < 10 ? "0" + n : "" + n; }
+        function tick() {
+            var now = new Date();
+            var midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+            var diff = Math.max(0, midnight - now);
+            var hours = Math.floor(diff / 3600000);
+            var minutes = Math.floor((diff % 3600000) / 60000);
+            var seconds = Math.floor((diff % 60000) / 1000);
+            el.innerHTML = "Next puzzle in <strong>" + pad(hours) + ":" + pad(minutes) + ":" + pad(seconds) + "</strong>";
+        }
+        tick();
+        if (_resultCountdownTimer) clearInterval(_resultCountdownTimer);
+        _resultCountdownTimer = setInterval(tick, 1000);
+    }
+
+    function renderResultCard(outcome, attempts) {
+        var card = document.getElementById("result-card");
+        if (!card) return;
+        var solWord = (typeof solution === "object" && solution && solution.word) ? solution.word : solution;
+        var definition = (typeof solution === "object" && solution && solution.definition) ? solution.definition : "";
+        var lesson = (typeof solution === "object" && solution && solution.lesson) ? solution.lesson : "";
+        var t = (typeof translations !== "undefined" && translations[currentLanguage]) ? translations[currentLanguage] : {};
+        var winStreak = getWinStreak();
+        var dailyStreak = parseInt(getLangCookie("DSG_streak") || "0", 10) || 0;
+        var movesUsed = (typeof startingMoves !== "undefined" && typeof movesLeft !== "undefined") ? Math.max(0, startingMoves - movesLeft) : null;
+
+        var headline = outcome === "win" ? (t.foundIt || "You got it!") : (t.shucks || "Good try.");
+        var eyebrow = outcome === "win" ? "Solved" : "Today's word";
+
+        var html = "";
+        html += '<div class="result-eyebrow">' + eyebrow + '</div>';
+        html += '<div class="result-headline">' + headline + '</div>';
+        html += '<div class="result-word">' + solWord + '</div>';
+
+        if (currentLanguage !== "eng" && definition) {
+            html += '<div class="result-definition"><em>Definition.</em> ' + definition;
+            if (lesson) {
+                var safeLesson = lesson.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                html += ' <a href="#" class="lesson-link" onclick="showModal(\'' + safeLesson + '\', false); return false;">Open word lesson</a>';
+            }
+            html += '</div>';
+        }
+
+        html += '<div class="result-stats">';
+        if (outcome === "win" && attempts) {
+            html += '<span class="stat"><span class="stat-value">' + attempts + '</span> tries</span>';
+        }
+        if (movesUsed !== null) {
+            html += '<span class="stat"><span class="stat-value">' + movesUsed + '</span> moves used</span>';
+        }
+        html += '<span class="stat"><span class="stat-value">' + winStreak + '</span> win streak</span>';
+        html += '<span class="stat"><span class="stat-value">' + dailyStreak + '</span> day streak</span>';
+        html += '</div>';
+
+        html += '<div class="result-countdown" id="result-countdown">Next puzzle in <strong>--:--:--</strong></div>';
+
+        card.classList.remove("hidden", "won", "lost");
+        card.classList.add(outcome === "win" ? "won" : "lost");
+        card.innerHTML = html;
+
+        // Hide the letter selection grid so the card takes its place visually.
+        var columns = document.getElementById("columns-container");
+        if (columns) columns.classList.add("hidden");
+
+        startResultCountdown(document.getElementById("result-countdown"));
     }
     // Example function to get the user's win streak from localStorage (or default to 0)
     function getWinStreak() {

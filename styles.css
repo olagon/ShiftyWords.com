@@ -48,6 +48,11 @@
     --font-display: 'Source Serif 4', Georgia, serif;
     --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 
+    /* Fluid sizing: bigger tiles on phones, slightly bigger on desktop too */
+    --cell-size: clamp(48px, 13vw, 60px);
+    --cell-gap: clamp(4px, 1.4vw, 8px);
+    --tile-size: clamp(46px, 12.5vw, 58px);
+
     /* Backwards-compat aliases the game JS may reference */
     --bg-color: var(--bg);
     --surface-color: var(--surface);
@@ -248,7 +253,7 @@ header {
 #columns-container {
     display: flex;
     justify-content: center;
-    gap: 8px;
+    gap: var(--cell-gap);
     padding: 10px;
     margin-bottom: 1.5rem;
     min-height: 300px;
@@ -294,8 +299,8 @@ header {
 .column {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 6px;
+    gap: var(--cell-gap);
+    padding: var(--cell-gap);
     background: rgba(255, 255, 255, 0.55);
     border-radius: var(--radius);
 }
@@ -305,8 +310,8 @@ html[data-theme="dark"] .column {
 }
 
 .letter-cell {
-    width: 48px;
-    height: 48px;
+    width: var(--cell-size);
+    height: var(--cell-size);
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
@@ -314,7 +319,7 @@ html[data-theme="dark"] .column {
     align-items: center;
     justify-content: center;
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: clamp(18px, 5vw, 22px);
     font-weight: 600;
     color: var(--ink);
     cursor: pointer;
@@ -429,20 +434,20 @@ html[data-theme="dark"] .column {
 
 .guess-row {
     display: flex;
-    gap: 6px;
+    gap: var(--cell-gap);
     justify-content: center;
 }
 
 .tile {
-    width: 48px;
-    height: 48px;
+    width: var(--tile-size);
+    height: var(--tile-size);
     border: 2px solid var(--line);
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: var(--font-display);
-    font-size: 22px;
+    font-size: clamp(20px, 5.5vw, 26px);
     font-weight: 700;
     text-transform: uppercase;
     background: var(--surface);
@@ -607,6 +612,122 @@ footer .footer-version {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* ----- Result card (replaces columns when game is over) ----- */
+.result-card {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto 1.5rem;
+    padding: 1.75rem 1.5rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    text-align: center;
+    animation: slideUp 0.45s ease;
+}
+
+.result-card .result-eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 0.5rem;
+}
+
+.result-card.won .result-eyebrow { color: var(--accent); }
+.result-card.lost .result-eyebrow { color: var(--warm); }
+
+.result-card .result-headline {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(1.2rem, 4vw, 1.45rem);
+    color: var(--ink);
+    margin: 0 0 1.1rem;
+    line-height: 1.25;
+}
+
+.result-card .result-word {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2.4rem, 9vw, 3.4rem);
+    color: var(--accent);
+    margin: 0.4rem 0 0.8rem;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.result-card.lost .result-word { color: var(--warm); }
+
+.result-card .result-definition {
+    font-family: var(--font-body);
+    color: var(--ink-soft);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    margin: 0 auto 1rem;
+    max-width: 440px;
+}
+
+.result-card .result-definition em {
+    color: var(--ink-muted);
+    font-style: italic;
+}
+
+.result-card .lesson-link {
+    display: inline-block;
+    color: var(--accent);
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    text-decoration: none;
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.result-card .lesson-link:hover { border-bottom-color: var(--accent); }
+
+.result-card .result-stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem 1rem;
+    margin: 1.25rem 0 0.75rem;
+    font-size: 0.86rem;
+    color: var(--ink-muted);
+}
+
+.result-card .result-stats .stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+}
+
+.result-card .result-stats .stat-value {
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 1rem;
+    font-family: var(--font-display);
+}
+
+.result-card .result-countdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+    padding: 0.4rem 0.9rem;
+    background: var(--surface-warm);
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+}
+
+.result-card .result-countdown strong {
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
 /* ----- Share link ----- */
 #download-result {
     margin-top: 2rem;
@@ -663,18 +784,6 @@ footer .footer-version {
 
     .column-wrapper { margin-bottom: 2px; }
     .column { gap: 4px; padding: 4px; }
-
-    .letter-cell {
-        width: 38px;
-        height: 38px;
-        font-size: 16px;
-    }
-
-    .tile {
-        width: 36px;
-        height: 36px;
-        font-size: 16px;
-    }
 
     .controls-container {
         gap: 10px;
