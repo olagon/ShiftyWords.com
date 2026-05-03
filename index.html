@@ -112,7 +112,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.6 May 2, 2026";
+    const appVersion = "v1.6.1 May 2, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -720,7 +720,8 @@
             columnOrder = seededShuffle([0, 1, 2, 3, 4], rand);
         }
 
-        let winStreakCookie = parseInt(getLangCookie("DSG_winStreak") || "0", 10);
+        // Practice and archive always run as Gray Level (5 rows, full moves) so they feel like a fresh start.
+        let winStreakCookie = (puzzleMode === "daily") ? parseInt(getLangCookie("DSG_winStreak") || "0", 10) : 0;
         movesLeft = Math.max(startingMoves - (winStreakCookie * streakMovesReduction), minMoves);
 
         // Reset sets
@@ -1471,7 +1472,10 @@
             }
         }
 
-        if (getLangCookie("DSG_lastPlayed") === getTodayStr() && getLangCookie("DSG_gameState")) {
+        // In archive or practice mode, always start a fresh game and skip the daily lockout.
+        if (puzzleMode !== "daily") {
+            initGame();
+        } else if (getLangCookie("DSG_lastPlayed") === getTodayStr() && getLangCookie("DSG_gameState")) {
             var stateStr = getLangCookie("DSG_gameState");
             var state = JSON.parse(stateStr);
             gameCompleted = (state.outcome === "win" || state.outcome === "lose");
@@ -1484,7 +1488,9 @@
         updateStreakDisplay();
         updateLabels();
         console.log("Solution for today:", solution);
-        checkIfPlayedToday();
+        if (puzzleMode === "daily") {
+            checkIfPlayedToday();
+        }
         if (gameCompleted) {
             const downloadBtn = document.getElementById("download-result");
             if (downloadBtn) {
@@ -1505,7 +1511,8 @@
             }, 1200);
         }
 
-        // First-time level intros: Purple, Gold, Impossible.
+        // First-time level intros: Purple, Gold, Impossible. Daily mode only.
+        if (puzzleMode !== "daily") return;
         try {
             var ws = parseInt(getLangCookie("DSG_winStreak") || "0", 10) || 0;
             var st = loadStats();
