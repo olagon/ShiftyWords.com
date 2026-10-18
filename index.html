@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.8">
+    <link rel="stylesheet" href="styles.css?v=1.9.1">
 </head>
 
 <body>
@@ -112,7 +112,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.8.4 May 2, 2026";
+    const appVersion = "v1.9.1 Oct 17, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -1505,6 +1505,7 @@
         maybeShowMissedTodayBanner();
         scheduleReminderCheck();
         refreshHintIndicator();
+        maybeShowWelcomeTour();
 
         // If a streak freeze was applied this load, let the player know.
         if (_freezeAppliedThisLoad) {
@@ -1720,7 +1721,7 @@
         if (statsBtn) statsBtn.addEventListener("click", openStatsModal);
 
         // Click-outside-to-close for the new modals.
-        ["help-modal", "terms-modal", "privacy-modal", "games-modal", "stats-modal", "level-intro-modal"].forEach(function(id) {
+        ["help-modal", "terms-modal", "privacy-modal", "games-modal", "welcome-tour-modal", "stats-modal", "level-intro-modal"].forEach(function(id) {
             window.addEventListener("click", function(event) {
                 var modal = document.getElementById(id);
                 if (event.target === modal) {
@@ -1732,7 +1733,7 @@
         // Escape key closes any open modal (including footer popups, language picker, word lesson).
         var escMonitoredModals = [
             "help-modal", "terms-modal", "privacy-modal", "games-modal",
-            "stats-modal", "level-intro-modal",
+            "welcome-tour-modal", "stats-modal", "level-intro-modal",
             "language-modal", "wordModal", "video-modal"
         ];
         document.addEventListener("keydown", function(event) {
@@ -2052,6 +2053,7 @@
     <div id="terms-modal" class="modal"></div>
     <div id="privacy-modal" class="modal"></div>
     <div id="games-modal" class="modal"></div>
+    <div id="welcome-tour-modal" class="modal"></div>
     <div id="stats-modal" class="modal"></div>
     <div id="level-intro-modal" class="modal"></div>
     <div id="catchup-banner" class="catchup-banner hidden"></div>
@@ -2157,6 +2159,229 @@
 
     function trackSessionResumed() {
         trackEvent('session_resumed', { event_label: 'Session Resumed' });
+    }
+
+    // ---------- First-launch welcome tour ----------
+    var _welcomeTimers = [];
+    function _wclear() {
+        _welcomeTimers.forEach(function(t) { clearTimeout(t); });
+        _welcomeTimers = [];
+    }
+    function _wlater(fn, delay) {
+        var t = setTimeout(fn, delay);
+        _welcomeTimers.push(t);
+    }
+
+    // Demo data: each column has 3 letters; the second cell is the "right" one.
+    // Picking the highlighted letters in order spells SHIFT.
+    var _demoColumns = [
+        { letters: ["A", "S", "T"], pickIndex: 1, picked: "S" },
+        { letters: ["L", "H", "M"], pickIndex: 1, picked: "H" },
+        { letters: ["E", "I", "O"], pickIndex: 1, picked: "I" },
+        { letters: ["Y", "F", "P"], pickIndex: 1, picked: "F" },
+        { letters: ["N", "T", "B"], pickIndex: 1, picked: "T" }
+    ];
+
+    function _renderDemoColumns() {
+        var c = document.getElementById("demo-columns");
+        if (!c) return;
+        c.innerHTML = "";
+        _demoColumns.forEach(function(col, ci) {
+            var colEl = document.createElement("div");
+            colEl.className = "demo-column";
+            colEl.dataset.col = ci;
+            col.letters.forEach(function(letter, li) {
+                var cell = document.createElement("div");
+                cell.className = "demo-cell";
+                cell.dataset.col = ci;
+                cell.dataset.row = li;
+                cell.textContent = letter;
+                colEl.appendChild(cell);
+            });
+            c.appendChild(colEl);
+        });
+    }
+
+    function _resetDemoState() {
+        document.querySelectorAll("#demo-columns .demo-cell").forEach(function(el) {
+            el.classList.remove("tapped", "fade-out");
+        });
+        document.querySelectorAll("#demo-preview .demo-preview-tile").forEach(function(t) {
+            t.textContent = "·";
+            t.classList.add("empty");
+            t.classList.remove("pop");
+        });
+        var stage = document.querySelector(".welcome-stage");
+        if (stage) {
+            // Reset any column shifts
+            document.querySelectorAll(".demo-column").forEach(function(col) {
+                col.style.transform = "";
+            });
+        }
+    }
+
+    function _moveFingerTo(targetEl) {
+        var finger = document.getElementById("welcome-finger");
+        var stage = document.querySelector(".welcome-stage");
+        if (!finger || !stage || !targetEl) return;
+        var stageBox = stage.getBoundingClientRect();
+        var targetBox = targetEl.getBoundingClientRect();
+        var x = targetBox.left + targetBox.width / 2 - stageBox.left;
+        var y = targetBox.top + targetBox.height / 2 - stageBox.top;
+        finger.classList.add("visible");
+        finger.style.left = x + "px";
+        finger.style.top = y + "px";
+    }
+
+    function _fingerPress() {
+        var finger = document.getElementById("welcome-finger");
+        if (!finger) return;
+        finger.classList.add("pressing");
+        _wlater(function() { finger.classList.remove("pressing"); }, 240);
+    }
+
+    function _hideFinger() {
+        var finger = document.getElementById("welcome-finger");
+        if (finger) finger.classList.remove("visible");
+    }
+
+    function _setCaption(text) {
+        var cap = document.getElementById("welcome-caption");
+        if (!cap) return;
+        cap.classList.add("fading");
+        _wlater(function() {
+            cap.textContent = text;
+            cap.classList.remove("fading");
+        }, 220);
+    }
+
+    function _setProgressStep(step) {
+        document.querySelectorAll("#welcome-progress .dot").forEach(function(d, i) {
+            d.classList.toggle("active", i <= step);
+        });
+    }
+
+    function _tapColumnPick(colIndex) {
+        var pick = _demoColumns[colIndex];
+        var cell = document.querySelector('#demo-columns .demo-cell[data-col="' + colIndex + '"][data-row="' + pick.pickIndex + '"]');
+        if (!cell) return;
+        _moveFingerTo(cell);
+        _wlater(function() {
+            _fingerPress();
+            cell.classList.add("tapped");
+            // Drop the letter into the preview tile at this position.
+            var tile = document.querySelector('#demo-preview .demo-preview-tile[data-pos="' + colIndex + '"]');
+            if (tile) {
+                tile.textContent = pick.picked;
+                tile.classList.remove("empty");
+                tile.classList.add("pop");
+                _wlater(function() { tile.classList.remove("pop"); }, 420);
+            }
+        }, 480);
+    }
+
+    function _animateColumnSwap() {
+        // Visually swap columns 1 and 2 to demonstrate reordering.
+        var colA = document.querySelector('.demo-column[data-col="0"]');
+        var colB = document.querySelector('.demo-column[data-col="1"]');
+        if (!colA || !colB) return;
+        var w = colA.offsetWidth + 6; // cell width + gap
+        colA.style.transform = "translateX(" + w + "px)";
+        colB.style.transform = "translateX(" + (-w) + "px)";
+        // Swap the preview letters at positions 0 and 1 to mirror.
+        var tA = document.querySelector('#demo-preview .demo-preview-tile[data-pos="0"]');
+        var tB = document.querySelector('#demo-preview .demo-preview-tile[data-pos="1"]');
+        if (tA && tB) {
+            var tmp = tA.textContent;
+            tA.textContent = tB.textContent;
+            tB.textContent = tmp;
+            tA.classList.add("pop");
+            tB.classList.add("pop");
+            _wlater(function() {
+                tA.classList.remove("pop");
+                tB.classList.remove("pop");
+            }, 420);
+        }
+    }
+
+    function runWelcomeTour() {
+        var modal = document.getElementById("welcome-tour-modal");
+        if (!modal) return;
+        // Self-contained fetch since loadModalFragment lives in a different scope.
+        fetch("welcome-tour.html?v=" + appVersion)
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                modal.innerHTML = html;
+                var x = modal.querySelector(".close");
+                if (x) x.addEventListener("click", function() {
+                    modal.style.display = "none";
+                    try { localStorage.setItem("SW_welcomeTourShown", "1"); } catch (e) {}
+                    _wclear();
+                });
+
+                modal.style.display = "flex";
+                trackModalOpened("welcome_tour");
+            _renderDemoColumns();
+            _resetDemoState();
+
+            // Wire dismiss buttons
+            var cta = document.getElementById("welcome-cta");
+            var closeBtn = document.getElementById("welcome-close");
+            function dismiss() {
+                _wclear();
+                modal.style.display = "none";
+                try { localStorage.setItem("SW_welcomeTourShown", "1"); } catch (e) {}
+                trackEvent("welcome_tour_dismissed", { event_label: "Welcome Tour Dismissed" });
+            }
+            if (cta) cta.addEventListener("click", dismiss);
+            if (closeBtn) closeBtn.addEventListener("click", dismiss);
+
+            // Animation timeline. Loops gracefully.
+            function playLoop() {
+                _resetDemoState();
+                _setProgressStep(0);
+                _setCaption("Tap a letter from each column to build your guess.");
+                // Tap each column's "right" letter, staggered.
+                _wlater(function() { _tapColumnPick(0); }, 700);
+                _wlater(function() { _tapColumnPick(1); }, 1500);
+                _wlater(function() { _tapColumnPick(2); }, 2300);
+                _wlater(function() { _tapColumnPick(3); }, 3100);
+                _wlater(function() { _tapColumnPick(4); }, 3900);
+
+                _wlater(function() {
+                    _hideFinger();
+                    _setProgressStep(1);
+                    _setCaption("Letters fill the preview row in real time. That's your guess.");
+                }, 4900);
+
+                _wlater(function() {
+                    _setProgressStep(2);
+                    _setCaption("Drag a column header to reorder them. Each move costs one turn.");
+                    _animateColumnSwap();
+                }, 6800);
+
+                _wlater(function() {
+                    _setProgressStep(3);
+                    _setCaption("Solve in fewer moves to climb from Gray to Impossible Level.");
+                }, 9000);
+
+                // Loop back after a pause.
+                _wlater(function() { playLoop(); }, 12500);
+            }
+            // Small initial delay so the modal animates in first.
+            _wlater(playLoop, 350);
+        })
+        .catch(function(err) { console.error("Welcome tour load failed:", err); });
+    }
+
+    function maybeShowWelcomeTour() {
+        if (puzzleMode !== "daily") return;
+        try {
+            if (localStorage.getItem("SW_welcomeTourShown") === "1") return;
+        } catch (e) { return; }
+        // Only auto-show for true first-timers (haven't played yet).
+        if (getLangCookie("DSG_lastPlayed")) return;
+        runWelcomeTour();
     }
 
     // ---------- Hint discoverability ----------

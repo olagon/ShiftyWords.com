@@ -49,9 +49,10 @@
     --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 
     /* Fluid sizing: bigger tiles on phones, slightly bigger on desktop too */
-    --cell-size: clamp(48px, 13vw, 60px);
-    --cell-gap: clamp(4px, 1.4vw, 8px);
-    --tile-size: clamp(46px, 12.5vw, 58px);
+    /* Grow with viewport so cells fill phone width. Formula fits 5 cells + 4 gaps + side padding. */
+    --cell-size: clamp(52px, calc((100vw - 36px) / 5 - 10px), 96px);
+    --cell-gap: clamp(5px, 2vw, 12px);
+    --tile-size: clamp(50px, calc((100vw - 36px) / 5 - 10px), 92px);
 
     /* Backwards-compat aliases the game JS may reference */
     --bg-color: var(--bg);
@@ -296,7 +297,7 @@ header {
     display: flex;
     justify-content: center;
     gap: var(--cell-gap);
-    padding: 10px;
+    padding: 6px 4px;
     margin-bottom: 1.5rem;
     min-height: 300px;
     align-items: flex-start;
@@ -361,7 +362,7 @@ html[data-theme="dark"] .column {
     align-items: center;
     justify-content: center;
     font-family: var(--font-display);
-    font-size: clamp(18px, 5vw, 22px);
+    font-size: clamp(20px, calc(var(--cell-size) * 0.45), 36px);
     font-weight: 600;
     color: var(--ink);
     cursor: pointer;
@@ -489,7 +490,7 @@ html[data-theme="dark"] .column {
     align-items: center;
     justify-content: center;
     font-family: var(--font-display);
-    font-size: clamp(20px, 5.5vw, 26px);
+    font-size: clamp(22px, calc(var(--tile-size) * 0.48), 40px);
     font-weight: 700;
     text-transform: uppercase;
     background: var(--surface);
@@ -667,6 +668,219 @@ footer .footer-version {
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* ----- Welcome tour modal ----- */
+.welcome-tour-card {
+    text-align: center;
+    max-width: 460px;
+    padding: 1.75rem 1.5rem 1.5rem;
+}
+
+.welcome-eyebrow {
+    font-family: var(--font-body);
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    margin-bottom: 0.4rem;
+}
+
+.welcome-title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(1.4rem, 5vw, 1.75rem);
+    color: var(--ink);
+    margin: 0 0 1rem;
+    line-height: 1.2;
+}
+
+.welcome-stage {
+    position: relative;
+    margin: 0.5rem auto 1rem;
+    padding: 0.85rem 0.5rem 1rem;
+    background: var(--surface-warm);
+    border-radius: var(--radius);
+    overflow: hidden;
+    user-select: none;
+}
+
+.demo-columns {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 0.85rem;
+    transition: gap 0.4s ease;
+}
+
+.demo-column {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.demo-cell {
+    width: clamp(34px, 9vw, 44px);
+    height: clamp(34px, 9vw, 44px);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: clamp(15px, 4vw, 20px);
+    font-weight: 600;
+    color: var(--ink);
+    transition: all 0.25s ease;
+}
+
+.demo-cell.tapped {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    transform: scale(0.92);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.demo-cell.fade-out {
+    opacity: 0.4;
+}
+
+.demo-preview {
+    display: inline-flex;
+    gap: 5px;
+    padding: 0.35rem 0.5rem;
+    background: var(--surface);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-sm);
+}
+
+.demo-preview-tile {
+    width: clamp(28px, 7.5vw, 36px);
+    height: clamp(28px, 7.5vw, 36px);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: clamp(14px, 4vw, 18px);
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    transition: transform 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.demo-preview-tile.empty {
+    color: var(--ink-muted);
+    font-weight: 400;
+}
+
+.demo-preview-tile.pop {
+    animation: demo-pop 0.4s ease;
+}
+
+@keyframes demo-pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.25); background: var(--accent-soft); }
+    100% { transform: scale(1); }
+}
+
+.welcome-finger {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(94, 58, 158, 0.25);
+    border: 2px solid var(--accent);
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+    transition: top 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                left 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.18s ease,
+                opacity 0.25s ease;
+    z-index: 5;
+    top: 0;
+    left: 0;
+}
+
+.welcome-finger.visible {
+    opacity: 1;
+}
+
+.welcome-finger.pressing {
+    transform: translate(-50%, -50%) scale(0.7);
+    background: rgba(94, 58, 158, 0.5);
+}
+
+.welcome-caption {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    min-height: 2.5rem;
+    margin: 0.5rem 0 0.85rem;
+    transition: opacity 0.25s ease;
+}
+
+.welcome-caption.fading { opacity: 0; }
+
+.welcome-progress {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 1rem;
+}
+
+.welcome-progress .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--line);
+    transition: background 0.25s ease, width 0.25s ease;
+}
+
+.welcome-progress .dot.active {
+    background: var(--accent);
+    width: 18px;
+    border-radius: 4px;
+}
+
+.welcome-actions {
+    margin-top: 0.5rem;
+}
+
+.welcome-cta {
+    display: inline-block;
+    padding: 0.75rem 1.6rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-full);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: all 0.15s ease;
+}
+
+.welcome-cta:hover {
+    background: var(--accent-deep);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+}
+
+.welcome-cta:active { transform: translateY(0); }
+
+@media (max-width: 480px) {
+    .welcome-tour-card { padding: 1.5rem 1rem 1.25rem; }
+    .welcome-stage { padding: 0.75rem 0.35rem 0.85rem; }
 }
 
 /* ----- Stats button next to level label ----- */
@@ -1131,7 +1345,7 @@ footer .footer-version {
 
 /* ----- Mobile ----- */
 @media (max-width: 600px) {
-    body { padding: 0 0.5rem 7.5rem; }
+    body { padding: 0 0.25rem 1.5rem; }
 
     header {
         margin-top: 0.75rem;
@@ -1143,16 +1357,15 @@ footer .footer-version {
     }
 
     #columns-container {
-        gap: 2px;
-        padding: 2px;
-        overflow-x: auto;
+        gap: var(--cell-gap);
+        padding: 4px 2px;
         justify-content: center;
-        padding-left: max(5px, env(safe-area-inset-left));
-        padding-right: max(5px, env(safe-area-inset-right));
+        padding-left: max(2px, env(safe-area-inset-left));
+        padding-right: max(2px, env(safe-area-inset-right));
     }
 
     .column-wrapper { margin-bottom: 2px; }
-    .column { gap: 4px; padding: 4px; }
+    .column { gap: var(--cell-gap); padding: 2px; }
 
     .controls-container {
         gap: 10px;
