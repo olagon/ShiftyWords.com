@@ -312,10 +312,6 @@ header {
     transition: transform 0.2s ease;
 }
 
-.column-wrapper.dragging {
-    opacity: 0.5;
-    transform: scale(0.95);
-}
 
 .drag-handle {
     width: 100%;
@@ -1365,7 +1361,8 @@ footer .footer-version {
     }
 
     .column-wrapper { margin-bottom: 2px; }
-    .column { gap: var(--cell-gap); padding: 2px; }
+    .column { gap: var(--cell-gap); padding: var(--col-pad); }
+    :root { --col-pad: 2px; }
 
     .controls-container {
         gap: 10px;
@@ -1461,3 +1458,170 @@ footer .footer-version {
     padding-top: 1rem;
     border-top: 1px solid var(--line);
 }
+
+/* ----- Intro video (first visit, and from Instructions) ----- */
+#intro {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: #4F46E5; /* the video's first frame, so there's no black flash */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: intro-in 0.4s ease-out;
+    transition: opacity 0.6s ease;
+}
+#intro.playing { background: #241a44; }
+#intro.closing { opacity: 0; pointer-events: none; }
+#intro video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+/* Phones: fill the screen. The video keeps everything that matters clear of the sides. */
+@media (orientation: portrait) and (max-aspect-ratio: 3/4) {
+    #intro video { object-fit: cover; }
+}
+.intro-controls {
+    position: absolute;
+    top: max(16px, env(safe-area-inset-top));
+    right: max(16px, env(safe-area-inset-right));
+    display: flex;
+    gap: 8px;
+}
+.intro-controls button {
+    font: 600 15px var(--font-body);
+    color: #fff;
+    background: rgba(0, 0, 0, 0.38);
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 18px;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+.intro-controls button:hover { background: rgba(0, 0, 0, 0.55); }
+@keyframes intro-in { from { opacity: 0; } }
+
+.watch-intro {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 1rem;
+    padding: 0.6rem 1.1rem 0.6rem 0.6rem;
+    font: 600 0.95rem var(--font-body);
+    color: var(--accent);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.watch-intro:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.watch-intro-play {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    padding-left: 2px;
+}
+
+/* The Instructions link in the level line */
+.level-label a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 1px;
+}
+.level-label a:hover { opacity: 0.75; }
+
+.footer-android { color: var(--ink-soft); }
+
+/* ----- One-screen game layout, matching the Android app -----
+   Compact header, guess board on top, columns under it, Check below. fitBoard() sets --cell-h so it all fits. */
+header {
+    margin-top: 0.9rem;
+    margin-bottom: 0.6rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    column-gap: 12px;
+    row-gap: 4px;
+}
+header .shifty-logo { flex-basis: 100%; padding: 2px 10px; }
+header .level-label { margin-top: 0; align-self: center; }
+header .stats-btn { margin-top: 0; }
+#moves-left { display: none; } /* streaks live in Stats, as in the app */
+#instructions { display: none; } /* the Instructions link and popup cover it */
+
+#board {
+    margin: 0 0 10px;
+    padding: 0;
+    gap: 6px;
+    background: none;
+    border: 0;
+    box-shadow: none;
+}
+.hidden-board { opacity: 1; transform: none; } /* the board is always there, as in the app */
+#board .guess-row { gap: var(--cell-gap); }
+#board .tile {
+    width: calc(var(--cell-size) + 2 * var(--col-pad, var(--cell-gap))); /* as wide as a column, so each sits over its column */
+    box-sizing: border-box;
+    height: calc(var(--cell-h, var(--cell-size)) * 0.72);
+    font-size: clamp(18px, calc(var(--cell-h, var(--cell-size)) * 0.34), 32px);
+}
+#columns-container { min-height: 0; margin-bottom: 0.9rem; padding-top: 0; }
+.letter-cell {
+    height: var(--cell-h, var(--cell-size));
+    font-size: clamp(18px, calc(min(var(--cell-size), var(--cell-h, var(--cell-size))) * 0.45), 36px);
+}
+.drag-handle { height: 24px; }
+html { scrollbar-gutter: stable; }
+.controls-container { margin-bottom: 0.5rem; }
+
+/* ----- Moving a column: the tab, then the drag itself ----- */
+.drag-handle {
+    height: 30px;
+    font-size: 18px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1.5px solid var(--accent);
+    border-radius: var(--radius-sm);
+    margin-bottom: 4px;
+    box-sizing: border-box;
+}
+.drag-handle:active { cursor: grabbing; }
+/* While dragging, the other columns step back in gray... */
+#columns-container.sorting .column-wrapper:not(.column-slot) {
+    filter: grayscale(1);
+    opacity: 0.35;
+    transition: opacity 0.15s, filter 0.15s;
+}
+/* ...the landing spot shows as a dashed slot... */
+.column-wrapper.column-slot { position: relative; }
+.column-wrapper.column-slot > * { visibility: hidden; }
+.column-wrapper.column-slot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+}
+/* ...and the column you're holding stays in full colour, lifted. */
+.column-lifted {
+    opacity: 1 !important;
+    transition: none !important; /* follow the finger exactly */
+    z-index: 10001;
+    filter: drop-shadow(0 14px 22px rgba(61, 38, 112, 0.35));
+}
+.column-lifted .column {
+    background: var(--surface);
+    outline: 2px solid var(--accent);
+    transform: scale(1.04);
+}
+.column-lifted .drag-handle { background: var(--accent); color: #fff; transform: scale(1.04); }

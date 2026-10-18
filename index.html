@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.9.1">
+    <link rel="stylesheet" href="styles.css?v=1.10.0">
 </head>
 
 <body>
@@ -59,6 +59,8 @@
         <span id="label-streak" class="label">Streak:</span> <span id="streak">0</span> &nbsp;
         <span id="label-winStreak" class="label">Win Streak:</span> <span id="winStreak">0</span>
     </div>
+    <!-- Guess board on top, letter columns under it, as in the Android app -->
+    <div id="board"></div>
     <!-- Letter selection board -->
     <div id="columns-container"></div>
     <!-- Result card replaces the columns area when the day's game is over -->
@@ -75,13 +77,12 @@
         </span>
     </div>
     <div id="instructions"></div>
-    <!-- The guess board will be generated dynamically based on win streak -->
-    <div id="board" class="hidden-board"></div>
     <div id="game-status"></div>
     <a href="#" id="download-result" style="display: none;">Share Results</a>
     <footer>
         <span class="footer-line">Built with aloha by <a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Olin Kealoha Lagon</a></span>
         <span class="footer-line"><a href="https://www.linkedin.com/in/olinlagon/" target="_blank" rel="noopener">Send feedback</a> &middot; <span class="switch-language-trigger" id="change-language" role="button" tabindex="0" aria-label="Switch language">Language <span class="switch-language-icon">🌐</span></span></span>
+        <span class="footer-line footer-android">Android app coming soon &middot; <a href="https://docs.google.com/forms/d/e/1FAIpQLScF1bdPN8DLskVbB9RCrpin32aZP-Eaw41I9DPUIlV9E-hy3A/viewform" target="_blank" rel="noopener">Get early access</a></span>
         <span class="footer-line"><a href="#" id="footer-privacy-link">Privacy</a> &middot; <a href="#" id="footer-terms-link">Terms</a> &middot; <a href="#" id="footer-games-link">More Games</a> &middot; No ads</span>
         <span class="footer-line footer-version">&copy; 2026 &middot; <span id="app-version"></span></span>
     </footer>
@@ -112,7 +113,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.9.1 Oct 17, 2026";
+    const appVersion = "v1.10.0 Oct 18, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -520,6 +521,7 @@
             }
         }
         drawColumns(); // Re-draw columns to show eliminated/found/selected states
+        fitBoard();
         const boardEl = document.getElementById("board");
         boardEl.style.display = "flex";
         boardEl.classList.remove("hidden-board");
@@ -696,6 +698,7 @@
         drawColumns();
         generateGuessBoard();
         createGuessButton();
+        fitBoard();
         document.getElementById("game-status").innerText = "";
         const board = document.getElementById("board");
         board.classList.add("hidden-board");
@@ -808,7 +811,8 @@
             // Create drag-handle element.
             const dragHandle = document.createElement("div");
             dragHandle.className = "drag-handle";
-            dragHandle.innerHTML = movesLeft > 0 ? "&#x2190; &#x2192;" : "X";
+            dragHandle.innerHTML = movesLeft > 0 ? "&#x21C6;" : "X";
+            dragHandle.setAttribute("aria-label", "Drag to move this column");
             if (movesLeft <= 0) {
                 dragHandle.classList.add("disabled");
             }
@@ -851,16 +855,19 @@
             animation: 150,
             handle: ".drag-handle",
             forceFallback: true,
+            fallbackOnBody: true,
+            fallbackClass: "column-lifted", // the full-colour column under your finger
+            ghostClass: "column-slot", // where it will land
             disabled: movesLeft <= 0,
             onStart: function(evt) {
                 if (movesLeft <= 0) {
                     evt.preventDefault();
                     return;
                 }
-                evt.item.classList.add("dragging");
+                container.classList.add("sorting"); // grays the other columns
             },
             onEnd: function(evt) {
-                evt.item.classList.remove("dragging");
+                document.getElementById("columns-container").classList.remove("sorting");
                 const container = document.getElementById("columns-container");
                 const oldOrder = columnOrder.slice();
                 const oldGuess = guesses[currentGuessIndex] ? guesses[currentGuessIndex].slice() : [];
@@ -1023,14 +1030,32 @@
     let firstLetterSelected = false;
 
     function scrollToGameArea() {
-        // On mobile, scroll so the columns are at the top of the viewport
-        if (window.innerWidth <= 600) {
-            const columns = document.getElementById("columns-container");
-            if (columns) {
-                columns.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
+        // The game fits the screen (fitBoard), so there's nothing to scroll to.
+    }
+
+    // Size the tiles so the header, board, columns and Check button fit the window, as the Android app does.
+    // Widths come from the CSS (they fill a phone's width); heights shrink to fit the window's height.
+    function fitBoard() {
+        var root = document.documentElement;
+        var cell = document.querySelector(".letter-cell");
+        var controls = document.querySelector(".controls-container");
+        var columns = document.getElementById("columns-container");
+        if (!cell || !controls || columns.classList.contains("hidden") || columns.offsetParent === null) {
+            root.style.removeProperty("--cell-h");
+            return;
+        }
+        var maxH = cell.offsetWidth;
+        var rows = document.querySelectorAll("#board .guess-row").length;
+        var units = 5 + rows * 0.72; // each board row is 0.72 of a column tile's height
+        for (var i = 0; i < 2; i++) { // the second pass settles any rounding
+            var h = cell.offsetHeight;
+            var over = controls.getBoundingClientRect().bottom + window.scrollY + 12 - window.innerHeight;
+            root.style.setProperty("--cell-h", Math.max(32, Math.min(maxH, h - over / units)) + "px");
         }
     }
+    window.addEventListener("resize", fitBoard);
+    window.addEventListener("load", function() { setTimeout(fitBoard, 0); });
+    if (document.fonts) document.fonts.ready.then(fitBoard);
 
     function addLetterToGuess(displayPos, letter) {
         if (gameCompleted) return;
@@ -1589,33 +1614,6 @@
             }
         });
 
-        // Automatically open intro video modal for new users:
-        if (!localStorage.getItem("hasSeenVideo")) {
-            console.log("olin");
-            // Mark the video as seen
-            localStorage.setItem("hasSeenVideo", "true");
-
-            // Build the iframe with autoplay enabled
-            var videoIframe = '<div class="modal-content" id="video-content">' +
-                '<span class="close" id="video-close">&times;</span>' +
-                '<h2>Welcome to ShiftyWords!</h2>' +
-                '<div class="responsive-video">' +
-                '<iframe src="https://www.youtube.com/embed/1bZKr2G1-bY?autoplay=1" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope;" allowfullscreen></iframe>' +
-                '</div>' +
-                '</div>';
-
-
-            // Insert the video into the modal
-            var videoModal = document.getElementById("video-modal");
-            videoModal.innerHTML = videoIframe;
-            videoModal.style.display = "flex";
-
-            document.getElementById("video-close").addEventListener("click", function() {
-                document.getElementById("video-modal").style.display = "none";
-            });
-
-        }
-
         // Open language selector when the Language pill (text + globe) is clicked or activated.
         function _openLanguagePicker() {
             if (!gameCompleted && currentGuessIndex > 1) {
@@ -1662,14 +1660,6 @@
             }
         });
 
-        // Close modal if clicking outside the modal content.
-        window.addEventListener("click", function(event) {
-            const modal = document.getElementById("video-modal");
-            if (event.target === modal) {
-                modal.style.display = "none";
-            }
-        });
-
 
         // Helper that fetches a fragment and pours it into the named modal.
         // The fragment must include a top-level .close element so the X works.
@@ -1694,8 +1684,18 @@
                 .catch(function(err) { console.error("Modal load failed:", err); });
         }
 
-        // Instructions: load in the user's currently selected language.
-        loadModalFragment("help-modal", "help_" + currentLanguage + ".html");
+        // Instructions: load in the user's currently selected language, with the intro video up top.
+        loadModalFragment("help-modal", "help_" + currentLanguage + ".html").then(function() {
+            var modal = document.getElementById("help-modal");
+            var h2 = modal.querySelector("h2");
+            if (!h2) return;
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "watch-intro";
+            btn.innerHTML = '<span class="watch-intro-play" aria-hidden="true">▶</span> Watch the intro';
+            btn.addEventListener("click", function() { modal.style.display = "none"; playIntro(); });
+            h2.insertAdjacentElement("afterend", btn);
+        });
 
         // Terms, Privacy, and More Games: English only, regardless of game language.
         loadModalFragment("terms-modal", "terms.html");
@@ -1734,7 +1734,7 @@
         var escMonitoredModals = [
             "help-modal", "terms-modal", "privacy-modal", "games-modal",
             "welcome-tour-modal", "stats-modal", "level-intro-modal",
-            "language-modal", "wordModal", "video-modal"
+            "language-modal", "wordModal"
         ];
         document.addEventListener("keydown", function(event) {
             if (event.key !== "Escape" && event.keyCode !== 27) return;
@@ -2058,7 +2058,6 @@
     <div id="level-intro-modal" class="modal"></div>
     <div id="catchup-banner" class="catchup-banner hidden"></div>
     <div id="mode-banner" class="mode-banner hidden"></div>
-    <div id="video-modal" class="modal"></div>
     <script>
     // ---------- Analytics helpers ----------
     // Every event gets language, current win streak, current level, and daily streak
@@ -2374,7 +2373,45 @@
         .catch(function(err) { console.error("Welcome tour load failed:", err); });
     }
 
+    // ---------- Intro video (intro.mp4, shared with the Android app) ----------
+    // Full screen, with Skip and sound. Browsers only autoplay muted, so it tries with sound and falls back to muted.
+    function playIntro(onDone) {
+        try { localStorage.setItem("SW_introSeen", "1"); } catch (e) {}
+        var wrap = document.createElement("div");
+        wrap.id = "intro";
+        wrap.innerHTML = '<video src="intro.mp4?v=' + encodeURIComponent(appVersion) + '" playsinline preload="auto" aria-label="ShiftyWords intro video"></video>' +
+            '<div class="intro-controls"><button type="button" class="intro-sound"></button>' +
+            '<button type="button" class="intro-skip">Skip</button></div>';
+        document.body.appendChild(wrap);
+        var video = wrap.querySelector("video");
+        var sound = wrap.querySelector(".intro-sound");
+        function label() { sound.textContent = video.muted ? "🔇 Tap for sound" : "🔊 Sound on"; }
+        var done = false;
+        function close() {
+            if (done) return;
+            done = true;
+            video.pause();
+            wrap.classList.add("closing");
+            setTimeout(function() { wrap.remove(); if (onDone) onDone(); }, 600);
+            document.removeEventListener("keydown", onKey);
+        }
+        function onKey(e) { if (e.key === "Escape") close(); }
+        document.addEventListener("keydown", onKey);
+        sound.addEventListener("click", function() { video.muted = !video.muted; if (video.paused) video.play(); label(); });
+        wrap.querySelector(".intro-skip").addEventListener("click", close);
+        video.addEventListener("ended", close);
+        video.addEventListener("error", close);
+        video.addEventListener("playing", function() { wrap.classList.add("playing"); }, { once: true });
+        video.play().catch(function() { video.muted = true; label(); return video.play(); }).catch(close);
+        label();
+        trackModalOpened("intro_video");
+    }
+
     function maybeShowWelcomeTour() {
+        var introSeen = true;
+        try { introSeen = localStorage.getItem("SW_introSeen") === "1"; } catch (e) {}
+        var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!introSeen && !still) { playIntro(maybeShowWelcomeTour); return; }
         if (puzzleMode !== "daily") return;
         try {
             if (localStorage.getItem("SW_welcomeTourShown") === "1") return;

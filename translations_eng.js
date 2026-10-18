@@ -19,6 +19,6 @@ const translations = {
     foundIt: "You found today's word!",
     confirm: "Confirm",
     move: "Move",
-    instructions: "Click on one letter from each column to build a guess of letters. Once all letters are chosen, submit your guess. Use the top arrows button to drag columns to arrange your word. You have a limited number of moves. After guessing, color clues are gray (letter not used), yellow (letter in wrong column), and green (letter in right place).",
+    instructions: "Tap one letter in each column, then press Check. Drag a column by its top bar to reorder it; each move costs one. Green is the right letter in the right spot, yellow is in the word but elsewhere, gray is not in the word.",
   }
 };
