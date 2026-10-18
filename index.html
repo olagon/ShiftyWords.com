@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.10.0">
+    <link rel="stylesheet" href="styles.css?v=1.10.1">
 </head>
 
 <body>
@@ -53,6 +53,7 @@
             </svg>
             <span id="stats-btn-label">Stats</span>
         </button>
+        <button id="lang-btn" class="lang-btn" aria-label="Switch language"><span aria-hidden="true">🌐</span> <span id="lang-btn-label">English</span> <span aria-hidden="true">▾</span></button>
     </header>
     <!-- Moves, Streak, and Win Streak info -->
     <div id="moves-left">
@@ -76,6 +77,7 @@
             <span id="movesLeft">21</span>
         </span>
     </div>
+    <div class="game-links"><a href="#" id="help-link-inline">Instructions</a></div>
     <div id="instructions"></div>
     <div id="game-status"></div>
     <a href="#" id="download-result" style="display: none;">Share Results</a>
@@ -113,7 +115,7 @@
     /* =======================
              Game variables to set
             ======================== */
-    const appVersion = "v1.10.0 Oct 18, 2026";
+    const appVersion = "v1.10.1 Oct 18, 2026";
     let startingMoves = 50;
     let streakMovesReduction = 7;
     let minMoves = 18;
@@ -333,6 +335,19 @@
     function deleteLangCookie(name) {
         deleteCookie(name + "_" + currentLanguage);
     }
+
+    // Always open at the top: switching language reloads the page, and the browser would otherwise
+    // restore the old scroll position (down by the footer's Language link).
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+    // A tab left open past local midnight moves on to the new day's puzzle (and hint) when you come back to it.
+    var _loadedDay = null;
+    function _reloadIfNewDay() {
+        if (_loadedDay && getTodayStr() !== _loadedDay && puzzleMode === "daily") window.location.reload();
+    }
+    document.addEventListener("visibilitychange", function() { if (!document.hidden) _reloadIfNewDay(); });
+    window.addEventListener("focus", _reloadIfNewDay);
+    setInterval(_reloadIfNewDay, 60000);
 
     function getTodayStr() {
         const today = new Date();
@@ -1038,7 +1053,7 @@
     function fitBoard() {
         var root = document.documentElement;
         var cell = document.querySelector(".letter-cell");
-        var controls = document.querySelector(".controls-container");
+        var controls = document.querySelector(".game-links"); // the last thing that should fit
         var columns = document.getElementById("columns-container");
         if (!cell || !controls || columns.classList.contains("hidden") || columns.offsetParent === null) {
             root.style.removeProperty("--cell-h");
@@ -1465,6 +1480,7 @@
     }
 
     window.onload = () => {
+        _loadedDay = getTodayStr();
         // Parse puzzle mode from URL: ?date=YYYY-MM-DD for archive, ?practice=1 for practice.
         try {
             var params = new URLSearchParams(window.location.search);
@@ -1570,11 +1586,16 @@
         const hintTile = document.getElementById("logo-hint");
         if (hintTile) {
             hintTile.addEventListener("click", function() {
-                const hintKey = "hintUsed_" + currentLanguage;
+                if (puzzleMode !== "daily") return;
+                if (gameCompleted) {
+                    alert("Today's game is done. Hints are for while you play. Each language gets a new word and a new hint at midnight.");
+                    return;
+                }
+                const hintKey = "hintUsed_" + currentLanguage; // one hint per language per local day
                 const todayStr = getTodayStr();
                 // Check if the hint was already used today for the current language
                 if (localStorage.getItem(hintKey) === todayStr) {
-                    alert("You have already used your hint for today.");
+                    alert("You have already used today's hint in this language. A new one arrives at midnight.");
                     return;
                 }
 
@@ -1774,9 +1795,12 @@
             translations[currentLanguage].help :
             "Instructions";
 
-        var label = document.getElementById("currentLevelLabel");
-        // Set the label's innerHTML to include the inline help link
-        label.innerHTML = levelText + " | " + languageDisplayName + " | <a href=\"#\" id=\"help-link-inline\">" + helpText + "</a>";
+        document.getElementById("currentLevelLabel").textContent = levelText;
+        document.getElementById("lang-btn-label").textContent = languageDisplayName;
+        document.getElementById("help-link-inline").textContent = helpText;
+        document.getElementById("lang-btn").addEventListener("click", function() {
+            document.getElementById("change-language").click();
+        });
 
 
         // Attach an event listener to the inline help link in the level label

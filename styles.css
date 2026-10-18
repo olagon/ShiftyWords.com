@@ -1625,3 +1625,27 @@ html { scrollbar-gutter: stable; }
     transform: scale(1.04);
 }
 .column-lifted .drag-handle { background: var(--accent); color: #fff; transform: scale(1.04); }
+
+/* ----- Header row like the Android app: level on the left, Stats and language on the right ----- */
+header {
+    width: calc(5 * (var(--cell-size) + 2 * var(--col-pad, var(--cell-gap))) + 4 * var(--cell-gap));
+    max-width: 100%;
+    box-sizing: border-box;
+}
+header .level-label { margin-right: auto; text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 500; color: var(--ink-soft); }
+.lang-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.3rem 0.8rem;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: 600 0.85rem var(--font-body);
+    cursor: pointer;
+}
+.lang-btn:hover { box-shadow: 0 0 0 1px var(--accent); }
+.game-links { text-align: center; font-size: 0.85rem; margin-bottom: 0.5rem; }
+.game-links a { color: var(--ink-soft); text-decoration: none; border-bottom: 1px solid var(--line); }
+.game-links a:hover { color: var(--accent); border-bottom-color: var(--accent); }
